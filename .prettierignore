@@ -1,0 +1,8 @@
+node_modules
+dist
+.next
+.expo
+.turbo
+coverage
+package-lock.json
+JOBTOK_MASTER_BUILD_SPEC.md

@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+/* Mirrors @jobtok/tokens (colors.dark). Dark-first; light theme comes later. */
+:root {
+  --background: #0b0d18;
+  --surface: #11142a;
+  --surface-raised: #171b33;
+  --border: #232846;
+  --foreground: #e6e8f2;
+  --muted: #a3a9c7;
+  --primary: #7b3ff2;
+  --secondary: #3d7bff;
+  --accent: #22d3ee;
+  --success: #22c55e;
+  --danger: #ef4444;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
