@@ -6,10 +6,10 @@
   "main": "./dist/index.js",
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
-    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node --env-file-if-exists=.env dist/index.js",
-    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
-    "test": "prisma generate && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
     "db:generate": "prisma generate",
     "db:embedded": "tsx scripts/local-postgres.ts",
     "db:migrate": "prisma migrate dev",
@@ -18,18 +18,25 @@
     "db:status": "prisma migrate status",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force && prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "generate": "prisma generate",
+    "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
     "@jobtok/types": "*",
+    "@node-rs/argon2": "^2.2.1",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "helmet": "^8.3.0",
+    "jose": "^6.2.12",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^22.0.0",

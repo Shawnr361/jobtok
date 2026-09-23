@@ -4,9 +4,9 @@
 // (see prisma/migrations/*_init/migration.sql, section "Constraints & triggers").
 
 generator client {
-  provider           = "prisma-client"
-  output             = "../src/generated/prisma"
-  moduleFormat       = "esm"
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
   importFileExtension = "js"
 }
 
@@ -116,6 +116,33 @@ enum ReportEntityType {
   @@map("report_entity_type")
 }
 
+enum AuthClient {
+  web
+  mobile
+
+  @@map("auth_client")
+}
+
+enum OtpPurpose {
+  login
+  verify_phone
+
+  @@map("otp_purpose")
+}
+
+enum AuthTokenPurpose {
+  email_verification
+  password_reset
+
+  @@map("auth_token_purpose")
+}
+
+enum OAuthProvider {
+  google
+
+  @@map("oauth_provider")
+}
+
 enum ReportStatus {
   pending
   reviewing
@@ -168,8 +195,10 @@ model Category {
 model User {
   id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email              String?    @unique @db.VarChar(255)
-  /// E.164, e.g. +2348031234567
-  phone              String     @unique @db.VarChar(20)
+  /// E.164, e.g. +2348031234567. Set only once the number is verified by OTP, so every
+  /// stored phone is proven. Phone verification is mandatory before using the product
+  /// (enforced by requirePhoneVerified), but accounts may start from email or Google.
+  phone              String?    @unique @db.VarChar(20)
   countryCode        String     @default("NG") @map("country_code") @db.Char(2)
   passwordHash       String?    @map("password_hash") @db.VarChar(255)
   isPhoneVerified    Boolean    @default(false) @map("is_phone_verified")
@@ -199,6 +228,10 @@ model User {
   reportsReviewed        Report[]                   @relation("Reviewer")
   notifications          Notification[]
   applicationStatusMoves ApplicationStatusHistory[]
+  authSessions           AuthSession[]
+  otpChallenges          OtpChallenge[]
+  authTokens             AuthToken[]
+  oauthAccounts          OAuthAccount[]
 
   @@map("users")
 }
@@ -566,4 +599,91 @@ model Notification {
 
   @@index([userId, isRead, createdAt(sort: Desc)], map: "idx_notifications_user_unread")
   @@map("notifications")
+}
+
+// ─── Authentication (Phase 1 Step 3) ────────────────────────────────────────
+// Secrets are never stored in plaintext: refresh/email/reset tokens are SHA-256 hashed,
+// OTP codes are HMAC-SHA256 hashed with a server secret, passwords use Argon2id (users).
+
+/// One signed-in device/browser. Access JWTs carry the session id, so revoking the row
+/// invalidates them immediately. Refresh tokens rotate on every use.
+model AuthSession {
+  id                       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                   String     @map("user_id") @db.Uuid
+  client                   AuthClient
+  refreshTokenHash         String     @unique @map("refresh_token_hash") @db.Char(64)
+  /// Previous refresh token; presenting it again means the token was stolen -> revoke.
+  previousRefreshTokenHash String?    @unique @map("previous_refresh_token_hash") @db.Char(64)
+  userAgent                String?    @map("user_agent") @db.VarChar(255)
+  ipAddress                String?    @map("ip_address") @db.VarChar(64)
+  createdAt                DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt               DateTime   @default(now()) @map("last_used_at") @db.Timestamptz(6)
+  expiresAt                DateTime   @map("expires_at") @db.Timestamptz(6)
+  revokedAt                DateTime?  @map("revoked_at") @db.Timestamptz(6)
+  revokeReason             String?    @map("revoke_reason") @db.VarChar(50)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt], map: "idx_auth_sessions_user_id")
+  @@map("auth_sessions")
+}
+
+/// A one-time code sent by SMS. Only a keyed hash of the code is stored.
+model OtpChallenge {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone        String     @db.VarChar(20)
+  purpose      OtpPurpose
+  /// Set for verify_phone (the signed-in user adding this phone).
+  userId       String?    @map("user_id") @db.Uuid
+  codeHash     String     @map("code_hash") @db.Char(64)
+  attempts     Int        @default(0)
+  maxAttempts  Int        @default(5) @map("max_attempts")
+  expiresAt    DateTime   @map("expires_at") @db.Timestamptz(6)
+  consumedAt   DateTime?  @map("consumed_at") @db.Timestamptz(6)
+  /// Set when a newer code replaces this one.
+  supersededAt DateTime?  @map("superseded_at") @db.Timestamptz(6)
+  requestedIp  String?    @map("requested_ip") @db.VarChar(64)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phone, createdAt(sort: Desc)], map: "idx_otp_challenges_phone")
+  @@map("otp_challenges")
+}
+
+/// Single-use email verification and password reset tokens (hashed).
+model AuthToken {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  purpose    AuthTokenPurpose
+  tokenHash  String           @unique @map("token_hash") @db.Char(64)
+  /// Email address the token was issued for (email verification is bound to it).
+  email      String           @db.VarChar(255)
+  expiresAt  DateTime         @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime?        @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose], map: "idx_auth_tokens_user_purpose")
+  @@map("auth_tokens")
+}
+
+/// External identity (Google) linked to a JobTok user. One user, many sign-in methods.
+model OAuthAccount {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  provider          OAuthProvider
+  /// Stable provider subject (Google `sub`), never the email.
+  providerAccountId String        @map("provider_account_id") @db.VarChar(255)
+  email             String?       @db.VarChar(255)
+  emailVerified     Boolean       @default(false) @map("email_verified")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt        DateTime      @default(now()) @map("last_used_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+  @@map("oauth_accounts")
 }

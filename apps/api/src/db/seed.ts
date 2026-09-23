@@ -1,7 +1,15 @@
 import { COUNTRIES, LAUNCH_CATEGORIES } from '@jobtok/types';
 import { transitionApplication } from '../modules/applications/application-status.js';
+import { hashPassword } from '../modules/auth/crypto.js';
 import type { Db } from './client.js';
-import { SEED_IDS, SEED_USERS, SKILLS_BY_CATEGORY, seedId, slugify } from './seed-data.js';
+import {
+  SEED_DEV_PASSWORD,
+  SEED_IDS,
+  SEED_USERS,
+  SKILLS_BY_CATEGORY,
+  seedId,
+  slugify,
+} from './seed-data.js';
 
 export interface SeedSummary {
   countries: number;
@@ -64,6 +72,7 @@ export async function seed(db: Db, { withFixtures = true } = {}): Promise<SeedSu
 
 async function seedFixtures(db: Db) {
   const skill = (name: string) => seedId(`skill:${slugify(name)}`);
+  const devPasswordHash = await hashPassword(SEED_DEV_PASSWORD);
 
   for (const [key, u] of Object.entries(SEED_USERS)) {
     const data = {
@@ -76,7 +85,12 @@ async function seedFixtures(db: Db) {
     };
     await db.user.upsert({
       where: { id: SEED_IDS.user(key as keyof typeof SEED_USERS) },
-      create: { id: SEED_IDS.user(key as keyof typeof SEED_USERS), ...data },
+      // Password set on creation only, so re-seeding never changes it.
+      create: {
+        id: SEED_IDS.user(key as keyof typeof SEED_USERS),
+        ...data,
+        passwordHash: devPasswordHash,
+      },
       update: data,
     });
   }

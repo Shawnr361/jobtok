@@ -2,25 +2,30 @@
   "$schema": "https://turborepo.com/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "generate"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
       "inputs": ["$TURBO_DEFAULT$", "!src/generated/**"]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["^build", "generate"]
     },
     "lint": {
       "dependsOn": ["^build"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "generate"],
       "inputs": ["$TURBO_DEFAULT$", "!src/generated/**"]
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "generate"],
       "env": ["TEST_DATABASE_URL", "TEST_PGPORT"],
       "inputs": ["$TURBO_DEFAULT$", "!src/generated/**"]
+    },
+    "generate": {
+      "outputs": ["src/generated/**"],
+      "inputs": ["prisma/schema.prisma", "prisma.config.ts"]
     }
   }
 }

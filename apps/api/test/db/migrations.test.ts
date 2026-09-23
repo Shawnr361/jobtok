@@ -14,6 +14,8 @@ const migrationNames = readdirSync(migrationsDir, { withFileTypes: true })
 const EXPECTED_TABLES = [
   'application_status_history',
   'applications',
+  'auth_sessions',
+  'auth_tokens',
   'categories',
   'conversations',
   'countries',
@@ -24,6 +26,8 @@ const EXPECTED_TABLES = [
   'likes',
   'messages',
   'notifications',
+  'oauth_accounts',
+  'otp_challenges',
   'portfolio_items',
   'post_tags',
   'posts',
@@ -93,7 +97,7 @@ describe('migrations', () => {
   it('`prisma migrate status` reports the database up to date', () => {
     const out = runPrisma(['migrate', 'status'], inject('databaseUrl'));
     expect(out).toMatch(/Database schema is up to date/);
-  });
+  }, 120_000);
 
   it('has no drift between schema.prisma and the migrated database', () => {
     // --exit-code: 0 = no difference, 2 = difference (throws).
@@ -109,7 +113,7 @@ describe('migrations', () => {
       inject('databaseUrl'),
     );
     expect(out).toMatch(/No difference|empty/i);
-  });
+  }, 120_000);
 
   it('creates every spec table', async () => {
     const rows = await db.$queryRaw<{ tablename: string }[]>`

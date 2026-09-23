@@ -78,6 +78,9 @@ export const SKILLS_BY_CATEGORY: Record<CategorySlug, readonly string[]> = {
   ],
 };
 
+/** DEVELOPMENT ONLY password for the seed accounts below (local databases only). */
+export const SEED_DEV_PASSWORD = 'jobtok-dev-password';
+
 /** Development accounts. Phones are valid Nigerian numbers reserved for local data only. */
 export const SEED_USERS = {
   admin: { phone: '+2347031110004', email: 'admin@jobtok.test', role: 'admin', mode: 'seeker' },

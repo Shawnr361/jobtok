@@ -6,15 +6,16 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "next": "16.3.6",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "@jobtok/tokens": "*",
-    "@jobtok/types": "*"
+    "@jobtok/types": "*",
+    "@jobtok/api-client": "*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

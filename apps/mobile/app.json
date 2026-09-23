@@ -24,6 +24,7 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "jobtok",
-    "backgroundColor": "#0B0D18"
+    "backgroundColor": "#0B0D18",
+    "plugins": ["expo-router", "expo-secure-store", "expo-web-browser"]
   }
 }

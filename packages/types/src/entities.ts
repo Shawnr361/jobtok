@@ -22,7 +22,8 @@ export interface Verification {
 export interface User {
   id: string;
   email: string | null;
-  phone: string;
+  /** E.164. Null until the user verifies a phone number (required before using the product). */
+  phone: string | null;
   role: UserRole;
   activeMode: ActiveMode;
   verification: Verification;

@@ -50,9 +50,20 @@ export const DEFAULT_COUNTRY: CountryCode = 'NG';
  * (e.g. "0803 123 4567" -> "+2348031234567"). Returns null when invalid for the country.
  */
 export function toE164(input: string, country: CountryCode = DEFAULT_COUNTRY): string | null {
-  const cfg = COUNTRIES[country];
+  return normalizePhoneNumber(input, COUNTRIES[country]);
+}
+
+/**
+ * Same as `toE164`, but for any country configuration (e.g. a row loaded from the
+ * `countries` table, whose `phone_pattern` is the source of `nationalNumberPattern`).
+ */
+export function normalizePhoneNumber(
+  input: string,
+  cfg: { dialCode: string; nationalNumberPattern: RegExp },
+): string | null {
   const dialDigits = cfg.dialCode.slice(1);
-  let digits = input.replace(/[^\d+]/g, '');
+  let digits = input.trim().replace(/[\s().-]/g, '');
+  if (!/^\+?\d+$/.test(digits)) return null;
   if (digits.startsWith('+')) {
     if (!digits.startsWith(cfg.dialCode)) return null;
     digits = digits.slice(cfg.dialCode.length);

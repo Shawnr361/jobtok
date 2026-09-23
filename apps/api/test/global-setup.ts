@@ -20,7 +20,13 @@ const apiRoot = resolve(import.meta.dirname, '..');
 export function runPrisma(args: string[], databaseUrl: string) {
   return execFileSync(process.execPath, [require_prisma_cli(), ...args], {
     cwd: apiRoot,
-    env: { ...process.env, DATABASE_URL: databaseUrl },
+    // No update/telemetry network calls from the CLI during tests.
+    env: {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+      CHECKPOINT_DISABLE: '1',
+      PRISMA_HIDE_UPDATE_MESSAGE: '1',
+    },
     encoding: 'utf8',
     stdio: 'pipe',
   });
