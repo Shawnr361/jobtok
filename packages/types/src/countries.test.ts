@@ -21,7 +21,14 @@ describe('canTransitionApplication', () => {
   it('allows forward moves and blocks moves out of terminal states', () => {
     expect(canTransitionApplication('applied', 'reviewing')).toBe(true);
     expect(canTransitionApplication('offer', 'hired')).toBe(true);
+    expect(canTransitionApplication('interview', 'rejected')).toBe(true);
     expect(canTransitionApplication('hired', 'rejected')).toBe(false);
     expect(canTransitionApplication('applied', 'hired')).toBe(false);
+  });
+
+  it('only advances one stage at a time', () => {
+    expect(canTransitionApplication('applied', 'shortlisted')).toBe(false);
+    expect(canTransitionApplication('shortlisted', 'offer')).toBe(false);
+    expect(canTransitionApplication('offer', 'interview')).toBe(false);
   });
 });

@@ -19,7 +19,14 @@
     "format:check": "prettier --check .",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:embedded": "npm run db:embedded -w @jobtok/api",
+    "db:migrate": "npm run db:migrate -w @jobtok/api",
+    "db:deploy": "npm run db:deploy -w @jobtok/api",
+    "db:status": "npm run db:status -w @jobtok/api",
+    "db:seed": "npm run db:seed -w @jobtok/api",
+    "db:reset": "npm run db:reset -w @jobtok/api",
+    "db:studio": "npm run db:studio -w @jobtok/api"
   },
   "devDependencies": {
     "husky": "^9.1.7",

@@ -1,0 +1,569 @@
+// JobTok database schema. Source of truth: JOBTOK_MASTER_BUILD_SPEC.md, Part 4.
+// Tables and columns keep the spec's snake_case names via @@map / @map.
+// CHECK constraints and triggers that Prisma cannot express live in the migration SQL
+// (see prisma/migrations/*_init/migration.sql, section "Constraints & triggers").
+
+generator client {
+  provider           = "prisma-client"
+  output             = "../src/generated/prisma"
+  moduleFormat       = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+// Values mirror packages/types/src/enums.ts.
+
+enum UserRole {
+  seeker
+  employer
+  both
+  admin
+
+  @@map("user_role")
+}
+
+enum ActiveMode {
+  seeker
+  employer
+
+  @@map("active_mode")
+}
+
+enum PostType {
+  showcase
+  job
+  service
+  company
+  project
+
+  @@map("post_type")
+}
+
+enum EmploymentType {
+  full_time
+  part_time
+  freelance
+  gig
+  internship
+  local_service
+
+  @@map("employment_type")
+}
+
+enum WorkArrangement {
+  on_site
+  hybrid
+  remote
+
+  @@map("work_arrangement")
+}
+
+enum SalaryPeriod {
+  hourly
+  daily
+  weekly
+  monthly
+  yearly
+  fixed
+
+  @@map("salary_period")
+}
+
+/// APPLIED → REVIEWING → SHORTLISTED → INTERVIEW → OFFER → HIRED / REJECTED.
+/// Transitions are enforced by the trigger `applications_enforce_status_transition`.
+enum ApplicationStatus {
+  applied
+  reviewing
+  shortlisted
+  interview
+  offer
+  hired
+  rejected
+
+  @@map("application_status")
+}
+
+enum MessageType {
+  text
+  image
+  file
+  job_share
+  profile_share
+
+  @@map("message_type")
+}
+
+enum Proficiency {
+  beginner
+  intermediate
+  advanced
+  expert
+
+  @@map("proficiency")
+}
+
+enum ReportEntityType {
+  post
+  job
+  user
+  message
+  comment
+
+  @@map("report_entity_type")
+}
+
+enum ReportStatus {
+  pending
+  reviewing
+  actioned
+  dismissed
+
+  @@map("report_status")
+}
+
+// ─── Configuration ──────────────────────────────────────────────────────────
+
+/// Multi-country configuration. Nigeria is the only enabled country at launch.
+model Country {
+  code           String   @id @db.Char(2)
+  name           String   @db.VarChar(100)
+  dialCode       String   @map("dial_code") @db.VarChar(6)
+  currencyCode   String   @map("currency_code") @db.Char(3)
+  currencySymbol String   @map("currency_symbol") @db.VarChar(8)
+  /// Regex (POSIX-compatible) for the national phone number without dial code or leading 0.
+  phonePattern   String   @map("phone_pattern") @db.VarChar(100)
+  isEnabled      Boolean  @default(false) @map("is_enabled")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  users            User[]
+  profiles         Profile[]
+  employerProfiles EmployerProfile[]
+  posts            Post[]
+  jobs             Job[]
+
+  @@map("countries")
+}
+
+/// Launch categories (Digital & Tech, Skilled Trades, ...). Skills belong to a category.
+model Category {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String   @unique @db.VarChar(60)
+  name      String   @unique @db.VarChar(100)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  skills Skill[]
+
+  @@map("categories")
+}
+
+// ─── Users & profiles ───────────────────────────────────────────────────────
+
+/// One account per person. Seeker and employer capabilities hang off it as separate
+/// profiles, so switching `active_mode` never deletes history.
+model User {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String?    @unique @db.VarChar(255)
+  /// E.164, e.g. +2348031234567
+  phone              String     @unique @db.VarChar(20)
+  countryCode        String     @default("NG") @map("country_code") @db.Char(2)
+  passwordHash       String?    @map("password_hash") @db.VarChar(255)
+  isPhoneVerified    Boolean    @default(false) @map("is_phone_verified")
+  isEmailVerified    Boolean    @default(false) @map("is_email_verified")
+  isIdVerified       Boolean    @default(false) @map("is_id_verified")
+  isBusinessVerified Boolean    @default(false) @map("is_business_verified")
+  role               UserRole   @default(seeker)
+  activeMode         ActiveMode @default(seeker) @map("active_mode")
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastActiveAt       DateTime?  @map("last_active_at") @db.Timestamptz(6)
+  isSuspended        Boolean    @default(false) @map("is_suspended")
+  suspensionReason   String?    @map("suspension_reason")
+
+  country                Country                    @relation(fields: [countryCode], references: [code])
+  profile                Profile?
+  employerProfile        EmployerProfile?
+  posts                  Post[]
+  likes                  Like[]
+  saves                  Save[]
+  following              Follow[]                   @relation("Follower")
+  followers              Follow[]                   @relation("Following")
+  conversationsAsOne     Conversation[]             @relation("ParticipantOne")
+  conversationsAsTwo     Conversation[]             @relation("ParticipantTwo")
+  messages               Message[]
+  reportsFiled           Report[]                   @relation("Reporter")
+  reportsReviewed        Report[]                   @relation("Reviewer")
+  notifications          Notification[]
+  applicationStatusMoves ApplicationStatusHistory[]
+
+  @@map("users")
+}
+
+/// Job seeker profile (spec: `profiles`).
+model Profile {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  username        String   @unique @db.VarChar(50)
+  fullName        String?  @map("full_name") @db.VarChar(100)
+  headline        String?  @db.VarChar(150)
+  bio             String?
+  avatarUrl       String?  @map("avatar_url") @db.VarChar(500)
+  locationCity    String?  @map("location_city") @db.VarChar(100)
+  locationState   String?  @map("location_state") @db.VarChar(100)
+  locationCountry String   @default("NG") @map("location_country_code") @db.Char(2)
+  latitude        Decimal? @db.Decimal(10, 8)
+  longitude       Decimal? @db.Decimal(11, 8)
+  availability    String?  @db.VarChar(50)
+  experienceYears Int      @default(0) @map("experience_years")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country        Country         @relation(fields: [locationCountry], references: [code])
+  skills         ProfileSkill[]
+  portfolioItems PortfolioItem[]
+  applications   Application[]
+
+  @@index([locationCountry, locationState, locationCity], map: "idx_profiles_location")
+  @@map("profiles")
+}
+
+model Skill {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String   @unique @db.VarChar(100)
+  slug       String   @unique @db.VarChar(100)
+  categoryId String?  @map("category_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  category  Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  profiles  ProfileSkill[]
+  postTags  PostTag[]
+  jobSkills JobSkill[]
+
+  @@index([categoryId], map: "idx_skills_category_id")
+  @@map("skills")
+}
+
+model ProfileSkill {
+  profileId   String      @map("profile_id") @db.Uuid
+  skillId     String      @map("skill_id") @db.Uuid
+  proficiency Proficiency @default(intermediate)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, skillId])
+  @@index([skillId], map: "idx_profile_skills_skill_id")
+  @@map("profile_skills")
+}
+
+/// Employer capability. Company fields are optional so individuals can hire too.
+model EmployerProfile {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  companyName     String?  @map("company_name") @db.VarChar(150)
+  companyLogoUrl  String?  @map("company_logo_url") @db.VarChar(500)
+  industry        String?  @db.VarChar(100)
+  companySize     String?  @map("company_size") @db.VarChar(50)
+  website         String?  @db.VarChar(255)
+  description     String?
+  locationCity    String?  @map("location_city") @db.VarChar(100)
+  locationState   String?  @map("location_state") @db.VarChar(100)
+  locationCountry String   @default("NG") @map("location_country_code") @db.Char(2)
+  isVerified      Boolean  @default(false) @map("is_verified")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country Country @relation(fields: [locationCountry], references: [code])
+  jobs    Job[]
+
+  @@index([locationCountry, locationState, locationCity], map: "idx_employer_profiles_location")
+  @@map("employer_profiles")
+}
+
+// ─── Showcase & portfolio ───────────────────────────────────────────────────
+
+/// Feed item. Video binaries live in object storage; only URLs/metadata are stored here.
+model Post {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String   @map("user_id") @db.Uuid
+  postType             PostType @map("post_type")
+  title                String?  @db.VarChar(150)
+  description          String?
+  videoUrl             String?  @map("video_url") @db.VarChar(500)
+  videoThumbnailUrl    String?  @map("video_thumbnail_url") @db.VarChar(500)
+  videoDurationSeconds Int?     @map("video_duration_seconds")
+  locationCity         String?  @map("location_city") @db.VarChar(100)
+  locationState        String?  @map("location_state") @db.VarChar(100)
+  locationCountry      String   @default("NG") @map("location_country_code") @db.Char(2)
+  isPublished          Boolean  @default(true) @map("is_published")
+  isFlagged            Boolean  @default(false) @map("is_flagged")
+  flagCount            Int      @default(0) @map("flag_count")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country        Country         @relation(fields: [locationCountry], references: [code])
+  tags           PostTag[]
+  portfolioItems PortfolioItem[]
+  job            Job?
+  likes          Like[]
+  saves          Save[]
+
+  @@index([createdAt(sort: Desc)], map: "idx_posts_created_at")
+  @@index([userId, createdAt(sort: Desc)], map: "idx_posts_user_id")
+  @@index([postType, isPublished, createdAt(sort: Desc)], map: "idx_posts_post_type")
+  @@index([isPublished, isFlagged, createdAt(sort: Desc)], map: "idx_posts_feed")
+  @@index([locationCountry, locationState, locationCity], map: "idx_posts_location")
+  @@map("posts")
+}
+
+model PortfolioItem {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId    String    @map("profile_id") @db.Uuid
+  postId       String?   @map("post_id") @db.Uuid
+  title        String    @db.VarChar(150)
+  description  String?
+  imageUrls    String[]  @default([]) @map("image_urls")
+  externalLink String?   @map("external_link") @db.VarChar(500)
+  projectDate  DateTime? @map("project_date") @db.Date
+  isPinned     Boolean   @default(false) @map("is_pinned")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profile      Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  post         Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)
+  applications Application[]
+
+  @@index([profileId, isPinned], map: "idx_portfolio_items_profile_id")
+  @@index([postId], map: "idx_portfolio_items_post_id")
+  @@map("portfolio_items")
+}
+
+model PostTag {
+  postId  String @map("post_id") @db.Uuid
+  skillId String @map("skill_id") @db.Uuid
+
+  post  Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([postId, skillId])
+  @@index([skillId], map: "idx_post_tags_skill_id")
+  @@map("post_tags")
+}
+
+// ─── Jobs & applications ────────────────────────────────────────────────────
+
+model Job {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employerId          String          @map("employer_id") @db.Uuid
+  postId              String?         @unique @map("post_id") @db.Uuid
+  title               String          @db.VarChar(150)
+  description         String
+  employmentType      EmploymentType  @map("employment_type")
+  workArrangement     WorkArrangement @default(on_site) @map("work_arrangement")
+  salaryMin           Decimal?        @map("salary_min") @db.Decimal(12, 2)
+  salaryMax           Decimal?        @map("salary_max") @db.Decimal(12, 2)
+  salaryCurrency      String          @default("NGN") @map("salary_currency") @db.Char(3)
+  salaryPeriod        SalaryPeriod    @default(monthly) @map("salary_period")
+  locationCity        String?         @map("location_city") @db.VarChar(100)
+  locationState       String?         @map("location_state") @db.VarChar(100)
+  locationCountry     String          @default("NG") @map("location_country_code") @db.Char(2)
+  experienceRequired  Int?            @map("experience_required")
+  openings            Int             @default(1)
+  applicationDeadline DateTime?       @map("application_deadline") @db.Date
+  isActive            Boolean         @default(true) @map("is_active")
+  /// Reserved for future monetization; never set in the MVP.
+  isFeatured          Boolean         @default(false) @map("is_featured")
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employer     EmployerProfile @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  post         Post?           @relation(fields: [postId], references: [id], onDelete: SetNull)
+  country      Country         @relation(fields: [locationCountry], references: [code])
+  skills       JobSkill[]
+  applications Application[]
+
+  @@index([locationCountry, locationState, locationCity], map: "idx_jobs_location")
+  @@index([employmentType, isActive], map: "idx_jobs_employment_type")
+  @@index([isActive, createdAt(sort: Desc)], map: "idx_jobs_is_active")
+  @@index([employerId, createdAt(sort: Desc)], map: "idx_jobs_employer_id")
+  @@map("jobs")
+}
+
+model JobSkill {
+  jobId   String @map("job_id") @db.Uuid
+  skillId String @map("skill_id") @db.Uuid
+
+  job   Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([jobId, skillId])
+  @@index([skillId], map: "idx_job_skills_skill_id")
+  @@map("job_skills")
+}
+
+model Application {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId               String            @map("job_id") @db.Uuid
+  applicantId         String            @map("applicant_id") @db.Uuid
+  status              ApplicationStatus @default(applied)
+  coverMessage        String?           @map("cover_message")
+  attachedCvUrl       String?           @map("attached_cv_url") @db.VarChar(500)
+  attachedPortfolioId String?           @map("attached_portfolio_id") @db.Uuid
+  attachedPostIds     String[]          @default([]) @map("attached_post_ids") @db.Uuid
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  job               Job                        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  applicant         Profile                    @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  attachedPortfolio PortfolioItem?             @relation(fields: [attachedPortfolioId], references: [id], onDelete: SetNull)
+  statusHistory     ApplicationStatusHistory[]
+  conversations     Conversation[]
+
+  @@unique([jobId, applicantId])
+  @@index([jobId, status], map: "idx_applications_job_id")
+  @@index([applicantId, createdAt(sort: Desc)], map: "idx_applications_applicant_id")
+  @@index([status], map: "idx_applications_status")
+  @@map("applications")
+}
+
+/// Written by trigger on every status change (audit log). `changed_by` comes from the
+/// `jobtok.actor_id` transaction setting.
+model ApplicationStatusHistory {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId String             @map("application_id") @db.Uuid
+  oldStatus     ApplicationStatus? @map("old_status")
+  newStatus     ApplicationStatus  @map("new_status")
+  changedBy     String?            @map("changed_by") @db.Uuid
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changer     User?       @relation(fields: [changedBy], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, createdAt], map: "idx_application_status_history_application_id")
+  @@map("application_status_history")
+}
+
+// ─── Messaging, interactions & moderation ───────────────────────────────────
+
+/// Participants are stored ordered (participant_one < participant_two) so each pair is unique.
+model Conversation {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId  String?   @map("application_id") @db.Uuid
+  participantOne String    @map("participant_one") @db.Uuid
+  participantTwo String    @map("participant_two") @db.Uuid
+  lastMessageAt  DateTime? @map("last_message_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  userOne     User         @relation("ParticipantOne", fields: [participantOne], references: [id], onDelete: Cascade)
+  userTwo     User         @relation("ParticipantTwo", fields: [participantTwo], references: [id], onDelete: Cascade)
+  messages    Message[]
+
+  @@unique([participantOne, participantTwo])
+  @@index([participantOne, lastMessageAt(sort: Desc)], map: "idx_conversations_participant_one")
+  @@index([participantTwo, lastMessageAt(sort: Desc)], map: "idx_conversations_participant_two")
+  @@index([applicationId], map: "idx_conversations_application_id")
+  @@map("conversations")
+}
+
+model Message {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String      @map("conversation_id") @db.Uuid
+  senderId       String      @map("sender_id") @db.Uuid
+  content        String?
+  messageType    MessageType @default(text) @map("message_type")
+  attachmentUrl  String?     @map("attachment_url") @db.VarChar(500)
+  sharedEntityId String?     @map("shared_entity_id") @db.Uuid
+  isRead         Boolean     @default(false) @map("is_read")
+  readAt         DateTime?   @map("read_at") @db.Timestamptz(6)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt(sort: Desc)], map: "idx_messages_conversation_id")
+  @@index([senderId], map: "idx_messages_sender_id")
+  @@map("messages")
+}
+
+model Like {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([postId], map: "idx_likes_post_id")
+  @@map("likes")
+}
+
+model Save {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([postId], map: "idx_saves_post_id")
+  @@map("saves")
+}
+
+model Follow {
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId], map: "idx_follows_following_id")
+  @@map("follows")
+}
+
+model Report {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId         String           @map("reporter_id") @db.Uuid
+  reportedEntityType ReportEntityType @map("reported_entity_type")
+  reportedEntityId   String           @map("reported_entity_id") @db.Uuid
+  reason             String           @db.VarChar(100)
+  description        String?
+  status             ReportStatus     @default(pending)
+  reviewedBy         String?          @map("reviewed_by") @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  reporter User  @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("Reviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  /// One report per user per entity (prevents report spam).
+  @@unique([reporterId, reportedEntityType, reportedEntityId])
+  @@index([status, createdAt], map: "idx_reports_status")
+  @@index([reportedEntityType, reportedEntityId], map: "idx_reports_entity")
+  @@map("reports")
+}
+
+model Notification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  type       String   @db.VarChar(50)
+  title      String?  @db.VarChar(150)
+  body       String?
+  entityType String?  @map("entity_type") @db.VarChar(30)
+  entityId   String?  @map("entity_id") @db.Uuid
+  isRead     Boolean  @default(false) @map("is_read")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt(sort: Desc)], map: "idx_notifications_user_unread")
+  @@map("notifications")
+}

@@ -6,3 +6,5 @@ dist
 coverage
 package-lock.json
 JOBTOK_MASTER_BUILD_SPEC.md
+apps/api/src/generated
+apps/web/next-env.d.ts

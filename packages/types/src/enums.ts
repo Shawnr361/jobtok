@@ -34,21 +34,25 @@ export const APPLICATION_STATUSES = [
   'offer',
   'hired',
   'rejected',
-  'withdrawn',
 ] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
-/** Allowed status moves. Employers drive the pipeline; applicants can only withdraw. */
+/**
+ * Spec (PRD 3.4): APPLIED → REVIEWING → SHORTLISTED → INTERVIEW → OFFER → HIRED / REJECTED.
+ * Each stage advances one step; any non-final stage can be rejected. HIRED and REJECTED are final.
+ * The database enforces the same table (trigger `applications_enforce_status_transition`).
+ */
 export const APPLICATION_TRANSITIONS: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
-  applied: ['reviewing', 'shortlisted', 'rejected', 'withdrawn'],
-  reviewing: ['shortlisted', 'interview', 'rejected', 'withdrawn'],
-  shortlisted: ['interview', 'offer', 'rejected', 'withdrawn'],
-  interview: ['offer', 'rejected', 'withdrawn'],
-  offer: ['hired', 'rejected', 'withdrawn'],
+  applied: ['reviewing', 'rejected'],
+  reviewing: ['shortlisted', 'rejected'],
+  shortlisted: ['interview', 'rejected'],
+  interview: ['offer', 'rejected'],
+  offer: ['hired', 'rejected'],
   hired: [],
   rejected: [],
-  withdrawn: [],
 };
+
+export const FINAL_APPLICATION_STATUSES: readonly ApplicationStatus[] = ['hired', 'rejected'];
 
 export function canTransitionApplication(from: ApplicationStatus, to: ApplicationStatus): boolean {
   return APPLICATION_TRANSITIONS[from].includes(to);

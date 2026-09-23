@@ -13,6 +13,13 @@ export interface CursorPage<T> {
   nextCursor: string | null;
 }
 
+export interface DatabaseHealth {
+  status: 'ok';
+  latencyMs: number;
+  /** Number of applied Prisma migrations. */
+  migrations: number;
+}
+
 export interface HealthStatus {
   status: 'ok';
   service: string;
