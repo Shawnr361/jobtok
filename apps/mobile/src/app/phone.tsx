@@ -47,10 +47,15 @@ export default function PhoneScreen() {
       if (verifyOnly) {
         const { user } = await authApi.verifyPhone(phone, code, await getAccessToken());
         setUser(user);
+        router.replace({ pathname: '/signed-in', params: { reason: 'phone' } });
       } else {
-        await acceptSession(await authApi.verifyOtp(phone, code));
+        const session = await authApi.verifyOtp(phone, code);
+        await acceptSession(session);
+        router.replace({
+          pathname: '/signed-in',
+          params: { fresh: session.isNewUser ? '1' : '0' },
+        });
       }
-      router.replace('/home');
     });
 
   return (
@@ -58,7 +63,9 @@ export default function PhoneScreen() {
       <Title>{verifyOnly ? 'Verify your phone' : 'Continue with phone'}</Title>
       {!sentTo ? (
         <>
-          <Body muted>We’ll text you a 6-digit code. Nigerian numbers, e.g. 0803 123 4567.</Body>
+          <Body muted>
+            We’ll text you a 6-digit code. Use your Nigerian number, like 0803 123 4567.
+          </Body>
           <Field
             label="Phone number"
             value={phone}
@@ -78,7 +85,7 @@ export default function PhoneScreen() {
         </>
       ) : (
         <>
-          <Body muted>Enter the code sent to {sentTo}.</Body>
+          <Body muted>Enter the 6-digit code we sent to {sentTo}.</Body>
           <Field
             label="6-digit code"
             value={code}

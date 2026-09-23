@@ -27,7 +27,7 @@ export interface IssuedSession {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const unauthorized = (code = 'unauthorized', message = 'Authentication required') =>
+const unauthorized = (code = 'unauthorized', message = 'Please sign in to continue.') =>
   new HttpError(401, code, message);
 
 export class SessionService {
@@ -98,17 +98,21 @@ export class SessionService {
       if (reused && !reused.revokedAt) {
         await this.revoke(reused.id, 'refresh_token_reuse');
       }
-      throw unauthorized('invalid_refresh_token', 'Session is no longer valid');
+      throw unauthorized('invalid_refresh_token', 'Your session has ended. Please sign in again.');
     }
     if (session.revokedAt)
-      throw unauthorized('invalid_refresh_token', 'Session is no longer valid');
+      throw unauthorized('invalid_refresh_token', 'Your session has ended. Please sign in again.');
     if (session.expiresAt <= now) {
       await this.revoke(session.id, 'expired');
-      throw unauthorized('session_expired', 'Session has expired');
+      throw unauthorized('session_expired', 'Your session has expired. Please sign in again.');
     }
     if (session.user.isSuspended) {
       await this.revoke(session.id, 'user_suspended');
-      throw new HttpError(403, 'account_suspended', 'This account is suspended');
+      throw new HttpError(
+        403,
+        'account_suspended',
+        'This account has been suspended. Please contact support if you think this is a mistake.',
+      );
     }
 
     const nextToken = generateToken();
@@ -123,7 +127,8 @@ export class SessionService {
         expiresAt,
       },
     });
-    if (count !== 1) throw unauthorized('invalid_refresh_token', 'Session is no longer valid');
+    if (count !== 1)
+      throw unauthorized('invalid_refresh_token', 'Your session has ended. Please sign in again.');
 
     const access = await this.issueAccessToken(session.userId, session.id, now);
     return {
@@ -168,20 +173,25 @@ export class SessionService {
       claims = await verifyAccessToken(this.deps.config.accessTokenSecret, accessToken, now);
     } catch (err) {
       if (err instanceof InvalidAccessTokenError && err.reason === 'expired') {
-        throw unauthorized('token_expired', 'Access token has expired');
+        throw unauthorized('token_expired', 'Your session has expired. Please sign in again.');
       }
-      throw unauthorized('invalid_token', 'Invalid access token');
+      throw unauthorized('invalid_token', 'Please sign in again.');
     }
     const session = await this.db.authSession.findUnique({
       where: { id: claims.sessionId },
       include: { user: true },
     });
     if (!session || session.userId !== claims.userId || session.revokedAt) {
-      throw unauthorized('session_revoked', 'Session is no longer valid');
+      throw unauthorized('session_revoked', 'Your session has ended. Please sign in again.');
     }
-    if (session.expiresAt <= now) throw unauthorized('session_expired', 'Session has expired');
+    if (session.expiresAt <= now)
+      throw unauthorized('session_expired', 'Your session has expired. Please sign in again.');
     if (session.user.isSuspended) {
-      throw new HttpError(403, 'account_suspended', 'This account is suspended');
+      throw new HttpError(
+        403,
+        'account_suspended',
+        'This account has been suspended. Please contact support if you think this is a mistake.',
+      );
     }
     return { sessionId: session.id, user: session.user };
   }

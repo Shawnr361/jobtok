@@ -20,9 +20,9 @@ import type { IssuedSession } from './session.service.js';
 
 export const REFRESH_COOKIE = 'jobtok_rt';
 export const REGISTER_MESSAGE =
-  'Check your email to verify your address, then sign in. If you already have an account, we sent sign-in help to that address instead.';
+  "Almost there! Check your inbox for a link to confirm your email, then sign in. Already have an account? We've emailed you a quick way back in.";
 export const VERIFICATION_MESSAGE =
-  'If this email belongs to an account that still needs verifying, a new link has been sent.';
+  "If that email still needs confirming, we've sent you a fresh link.";
 const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
 // ─── Validation ─────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ export function createAuthRouter(db: Db, deps: AuthDeps) {
     if (!cookieToken) return null;
     const origin = req.get('origin');
     if (!origin || !deps.config.allowedOrigins.includes(origin)) {
-      throw new HttpError(403, 'origin_not_allowed', 'Request origin is not allowed');
+      throw new HttpError(403, 'origin_not_allowed', "This request isn't allowed from here.");
     }
     return cookieToken;
   }
@@ -172,7 +172,11 @@ export function createAuthRouter(db: Db, deps: AuthDeps) {
   router.post('/otp/send', limit.otpSend, auth, async (req, res) => {
     const body = schemas.otpSend.parse(req.body);
     if (body.purpose === 'verify_phone' && !req.auth) {
-      throw new HttpError(401, 'unauthorized', 'Sign in to verify a phone number');
+      throw new HttpError(
+        401,
+        'unauthorized',
+        'Please sign in first, then verify your phone number.',
+      );
     }
     const phoneNumber = await service.otp.normalizePhone(body.phone, body.country);
     const sent = await service.otp.send({
@@ -226,7 +230,12 @@ export function createAuthRouter(db: Db, deps: AuthDeps) {
   router.post('/refresh', async (req, res) => {
     const body = schemas.refresh.parse(req.body ?? {});
     const token = readRefreshToken(req, body.refreshToken);
-    if (!token) throw new HttpError(401, 'invalid_refresh_token', 'Session is no longer valid');
+    if (!token)
+      throw new HttpError(
+        401,
+        'invalid_refresh_token',
+        'Your session has ended. Please sign in again.',
+      );
     try {
       const issued = await service.sessions.refresh(token);
       await respondWithSession(req, res, issued, false);
@@ -281,7 +290,14 @@ export function createAuthRouter(db: Db, deps: AuthDeps) {
     const body = schemas.passwordForgot.parse(req.body);
     await service.requestPasswordReset(body.email);
     // Same response whether or not the account exists.
-    ok(res, { message: 'If an account exists for this email, a reset link has been sent.' }, 202);
+    ok(
+      res,
+      {
+        message:
+          "If there's an account with that email, we've sent you a link to reset your password.",
+      },
+      202,
+    );
   });
 
   router.post('/password/reset', limit.passwordReset, async (req, res) => {

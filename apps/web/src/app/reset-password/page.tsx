@@ -24,11 +24,14 @@ function ResetForm() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (!token) return <ErrorText message="This reset link is missing its token." />;
+  if (!token)
+    return (
+      <ErrorText message="This reset link looks incomplete. Please open it again from your email." />
+    );
   if (done) {
     return (
       <p className="text-sm text-muted">
-        Password updated. You have been signed out everywhere.{' '}
+        Your password is updated. We’ve signed you out on all your devices, so please sign in again.{' '}
         <Link href="/login" className="text-secondary">
           Sign in
         </Link>

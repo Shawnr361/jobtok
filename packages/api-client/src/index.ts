@@ -53,13 +53,17 @@ export function createAuthApi({ baseUrl, client, fetch: fetchImpl = fetch }: Aut
       throw new ApiClientError(
         0,
         'network_error',
-        'Could not reach JobTok. Check your connection.',
+        "Can't reach JobTok right now. Please check your internet connection.",
       );
     }
     if (res.status === 204) return undefined as T;
     const json = (await res.json().catch(() => null)) as ApiResponse<T> | null;
     if (!json)
-      throw new ApiClientError(res.status, 'bad_response', 'Unexpected response from server');
+      throw new ApiClientError(
+        res.status,
+        'bad_response',
+        'Something went wrong. Please try again.',
+      );
     if (!json.ok) {
       throw new ApiClientError(res.status, json.error.code, json.error.message, json.error.details);
     }

@@ -1,4 +1,6 @@
-import { MIN_TOUCH_TARGET, colors, fontSizes, fontWeights, radii, spacing } from '@jobtok/tokens';
+// Form/auth UI kit in the Cyber-Glass style (DESIGN.md: gradient pill CTAs, ghost buttons,
+// frosted inputs with a violet focus glow).
+import { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,8 +14,9 @@ import {
   type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const theme = colors.dark;
+import { MIN_TOUCH_TARGET, alpha, brand, c, glow, radii, spacing, type } from '../theme';
+import { Logo as BrandLogo } from './Logo';
+import { Gradient, Icon } from './primitives';
 
 export function Screen({ children }: { children: React.ReactNode }) {
   return (
@@ -32,22 +35,26 @@ export function Screen({ children }: { children: React.ReactNode }) {
 
 export function Logo() {
   return (
-    <Text style={styles.logo} accessibilityRole="header">
-      Job<Text style={{ color: theme.primaryHover }}>Tok</Text>
-    </Text>
+    <View style={{ alignItems: 'center' }}>
+      <BrandLogo size={44} fontSize={34} />
+    </View>
   );
 }
 
 export function Title({ children }: { children: React.ReactNode }) {
   return (
-    <Text style={styles.title} accessibilityRole="header">
+    <Text style={[type.headlineLgMobile, { color: c.onSurface }]} accessibilityRole="header">
       {children}
     </Text>
   );
 }
 
 export function Body({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
-  return <Text style={[styles.body, muted && { color: theme.textMuted }]}>{children}</Text>;
+  return (
+    <Text style={[type.bodyLg, { color: muted ? c.onSurfaceVariant : c.onSurface }]}>
+      {children}
+    </Text>
+  );
 }
 
 export function Button({
@@ -64,6 +71,22 @@ export function Button({
   disabled?: boolean;
 }) {
   const inactive = disabled || loading;
+  const content = loading ? (
+    <ActivityIndicator color={c.white} />
+  ) : (
+    <>
+      <Text
+        style={[
+          type.labelLg,
+          { color: variant === 'ghost' ? c.secondary : c.white },
+          variant === 'primary' && { fontFamily: 'PlusJakartaSans_700Bold' },
+        ]}
+      >
+        {label}
+      </Text>
+      {variant === 'primary' && <Icon name="arrow-forward" size={18} color={c.white} />}
+    </>
+  );
   return (
     <Pressable
       accessibilityRole="button"
@@ -72,36 +95,42 @@ export function Button({
       onPress={onPress}
       disabled={inactive}
       style={({ pressed }) => [
-        styles.button,
-        variant === 'primary' && { backgroundColor: theme.primary },
-        variant === 'secondary' && {
-          backgroundColor: theme.surfaceRaised,
-          borderColor: theme.border,
-          borderWidth: 1,
-        },
-        variant === 'ghost' && { backgroundColor: 'transparent' },
-        (pressed || inactive) && { opacity: 0.6 },
+        { opacity: inactive ? 0.5 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color={theme.onPrimary} />
+      {variant === 'primary' ? (
+        <Gradient
+          colors={[brand.violet, brand.blue]}
+          style={[styles.button, !inactive && glow('primary')]}
+        >
+          {content}
+        </Gradient>
       ) : (
-        <Text style={[styles.buttonText, variant === 'ghost' && { color: theme.secondaryHover }]}>
-          {label}
-        </Text>
+        <View style={[styles.button, variant === 'secondary' ? styles.secondary : styles.ghost]}>
+          {content}
+        </View>
       )}
     </Pressable>
   );
 }
 
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
+export function Field({ label, onFocus, onBlur, ...props }: TextInputProps & { label: string }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={{ gap: spacing[1] }}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor={theme.textSubtle}
-        style={styles.input}
+        placeholderTextColor={c.outline}
+        style={[type.bodyLg, styles.input, focused && [styles.inputFocused, glow('primary')]]}
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
         {...props}
       />
     </View>
@@ -111,7 +140,11 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
 export function ErrorText({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <Text style={styles.error} accessibilityRole="alert" accessibilityLiveRegion="polite">
+    <Text
+      style={[type.bodySm, { color: c.error }]}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+    >
       {message}
     </Text>
   );
@@ -120,48 +153,48 @@ export function ErrorText({ message }: { message: string | null }) {
 export function Notice({ children }: { children: React.ReactNode }) {
   return (
     <View style={styles.notice}>
-      <Text style={styles.noticeText}>{children}</Text>
+      <Icon name="info-outline" size={16} color={brand.alert} />
+      <Text style={[type.bodySm, { color: brand.alert, flexShrink: 1 }]}>{children}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.background },
+  safe: { flex: 1, backgroundColor: c.surface },
   scroll: { flexGrow: 1, padding: spacing[6], gap: spacing[4], justifyContent: 'center' },
-  logo: {
-    color: theme.textStrong,
-    fontSize: fontSizes['3xl'],
-    fontWeight: fontWeights.bold,
-    textAlign: 'center',
-  },
-  title: { color: theme.textStrong, fontSize: fontSizes['2xl'], fontWeight: fontWeights.bold },
-  body: { color: theme.text, fontSize: fontSizes.md, lineHeight: 22 },
-  label: { color: theme.textMuted, fontSize: fontSizes.sm, fontWeight: fontWeights.medium },
-  input: {
-    minHeight: MIN_TOUCH_TARGET + 4,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: theme.border,
-    backgroundColor: theme.surface,
-    color: theme.textStrong,
-    paddingHorizontal: spacing[4],
-    fontSize: fontSizes.md,
-  },
   button: {
-    minHeight: MIN_TOUCH_TARGET + 4,
+    minHeight: MIN_TOUCH_TARGET + 8,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     paddingHorizontal: spacing[6],
   },
-  buttonText: { color: theme.onPrimary, fontSize: fontSizes.md, fontWeight: fontWeights.semibold },
-  error: { color: theme.danger, fontSize: fontSizes.sm },
-  notice: {
-    borderRadius: radii.md,
+  secondary: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: theme.warning,
-    padding: spacing[3],
-    backgroundColor: theme.surface,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  noticeText: { color: theme.warning, fontSize: fontSizes.sm },
+  ghost: { backgroundColor: 'transparent', minHeight: MIN_TOUCH_TARGET },
+  input: {
+    minHeight: MIN_TOUCH_TARGET + 8,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(17, 24, 39, 0.6)',
+    color: c.onSurface,
+    paddingHorizontal: spacing[4],
+  },
+  inputFocused: { borderColor: brand.violet },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: alpha(brand.alert, 0.5),
+    padding: spacing[3],
+    backgroundColor: alpha(brand.alert, 0.08),
+  },
 });

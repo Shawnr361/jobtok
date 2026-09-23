@@ -8,7 +8,12 @@ const HOUR_MS = 60 * 60 * 1000;
 
 /** Generic message: never reveals whether a code existed, expired or was wrong. */
 const invalidCode = (details?: unknown) =>
-  new HttpError(400, 'otp_invalid', 'The code is invalid or has expired', details);
+  new HttpError(
+    400,
+    'otp_invalid',
+    "That code isn't right or has expired. Please check it and try again.",
+    details,
+  );
 
 export class OtpService {
   constructor(
@@ -28,14 +33,15 @@ export class OtpService {
       throw new HttpError(
         400,
         'country_not_supported',
-        'Phone sign-in is not available in this country yet',
+        "Phone sign-in isn't available in your country yet.",
       );
     }
     const phone = normalizePhoneNumber(input, {
       dialCode: country.dialCode,
       nationalNumberPattern: new RegExp(country.phonePattern),
     });
-    if (!phone) throw new HttpError(400, 'invalid_phone', 'Enter a valid phone number');
+    if (!phone)
+      throw new HttpError(400, 'invalid_phone', "That doesn't look like a valid phone number.");
     return phone;
   }
 
@@ -61,9 +67,14 @@ export class OtpService {
       const retryAt = latest.createdAt.getTime() + otp.resendCooldownSeconds * 1000;
       if (retryAt > now.getTime()) {
         const retryAfterSeconds = Math.ceil((retryAt - now.getTime()) / 1000);
-        throw new HttpError(429, 'otp_cooldown', 'Please wait before requesting another code', {
-          retryAfterSeconds,
-        });
+        throw new HttpError(
+          429,
+          'otp_cooldown',
+          'Please wait a moment before asking for another code.',
+          {
+            retryAfterSeconds,
+          },
+        );
       }
     }
     const sentLastHour = await this.db.otpChallenge.count({
@@ -73,7 +84,7 @@ export class OtpService {
       throw new HttpError(
         429,
         'otp_limit',
-        'Too many codes requested for this number. Try again later.',
+        "You've asked for a lot of codes. Please try again a little later.",
       );
     }
 
@@ -102,7 +113,7 @@ export class OtpService {
     try {
       await this.deps.sms.send(
         phone,
-        `Your JobTok code is ${code}. It expires in ${Math.round(otp.ttlSeconds / 60)} minutes. Never share this code.`,
+        `Your JobTok code is ${code}. It works for ${Math.round(otp.ttlSeconds / 60)} minutes. Please don't share it with anyone.`,
       );
     } catch (err) {
       // Log the provider failure, never the code.
@@ -113,7 +124,7 @@ export class OtpService {
       throw new HttpError(
         502,
         'otp_delivery_failed',
-        'We could not send the code. Please try again.',
+        "We couldn't send your code. Please try again.",
       );
     }
     return { expiresInSeconds: otp.ttlSeconds, resendAfterSeconds: otp.resendCooldownSeconds };
@@ -138,7 +149,7 @@ export class OtpService {
       throw new HttpError(
         429,
         'otp_attempts_exceeded',
-        'Too many incorrect attempts. Request a new code.',
+        'Too many wrong tries. Please ask for a new code.',
       );
     }
 
@@ -151,7 +162,7 @@ export class OtpService {
       throw new HttpError(
         429,
         'otp_attempts_exceeded',
-        'Too many incorrect attempts. Request a new code.',
+        'Too many wrong tries. Please ask for a new code.',
       );
     }
 
@@ -162,7 +173,7 @@ export class OtpService {
         throw new HttpError(
           429,
           'otp_attempts_exceeded',
-          'Too many incorrect attempts. Request a new code.',
+          'Too many wrong tries. Please ask for a new code.',
         );
       }
       throw invalidCode({ attemptsRemaining: remaining });

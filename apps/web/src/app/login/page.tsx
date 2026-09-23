@@ -86,7 +86,7 @@ function EmailLogin() {
         Forgot password?
       </Link>
       <Link href="/resend-verification" className="block text-center text-sm text-secondary">
-        Resend verification email
+        Resend confirmation email
       </Link>
     </form>
   );

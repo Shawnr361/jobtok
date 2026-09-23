@@ -45,12 +45,15 @@ function Verify() {
       });
   }, [token, status, setUser, getAccessToken]);
 
-  if (!token) return <ErrorText message="This verification link is missing its token." />;
-  if (state === 'working') return <p className="text-sm text-muted">Verifying…</p>;
+  if (!token)
+    return (
+      <ErrorText message="This link looks incomplete. Please open it again from your email." />
+    );
+  if (state === 'working') return <p className="text-sm text-muted">Confirming your email…</p>;
   if (state === 'error') return <ErrorText message={error} />;
   return (
     <p className="text-sm text-muted">
-      Email verified.{' '}
+      Your email is confirmed!{' '}
       <Link href={status === 'signedIn' ? '/account' : '/login'} className="text-secondary">
         {status === 'signedIn' ? 'Go to your account' : 'Sign in'}
       </Link>

@@ -31,8 +31,12 @@ export default function EmailScreen() {
         setInfo((await authApi.register(email, password)).message);
         setMode('login');
       } else {
-        await acceptSession(await authApi.login(email, password));
-        router.replace('/home');
+        const session = await authApi.login(email, password);
+        await acceptSession(session);
+        router.replace({
+          pathname: '/signed-in',
+          params: { fresh: session.isNewUser ? '1' : '0' },
+        });
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -45,7 +49,7 @@ export default function EmailScreen() {
     login: 'Sign in with email',
     register: 'Create an account',
     forgot: 'Reset your password',
-    resend: 'Resend verification email',
+    resend: 'Resend confirmation email',
   }[mode];
   const cta = {
     login: 'Sign in',
@@ -104,7 +108,7 @@ export default function EmailScreen() {
           <>
             <Button label="Forgot password?" variant="ghost" onPress={() => setMode('forgot')} />
             <Button
-              label="Resend verification email"
+              label="Resend confirmation email"
               variant="ghost"
               onPress={() => setMode('resend')}
             />

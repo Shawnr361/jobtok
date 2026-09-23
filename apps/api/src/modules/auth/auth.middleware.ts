@@ -65,26 +65,30 @@ export function authenticate(sessions: SessionService): RequestHandler {
 }
 
 export const requireAuth: RequestHandler = (req, _res, next) => {
-  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Authentication required');
+  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Please sign in to continue.');
   next();
 };
 
 /** Phone verification is mandatory before using the product (spec: trust model). */
 export const requirePhoneVerified: RequestHandler = (req, _res, next) => {
-  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Authentication required');
+  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Please sign in to continue.');
   if (!req.auth.verification.phone) {
-    throw new HttpError(403, 'phone_verification_required', 'Verify your phone number to continue');
+    throw new HttpError(
+      403,
+      'phone_verification_required',
+      'Please verify your phone number first.',
+    );
   }
   next();
 };
 
 export const requireEmailVerified: RequestHandler = (req, _res, next) => {
-  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Authentication required');
+  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Please sign in to continue.');
   if (!req.auth.verification.email) {
     throw new HttpError(
       403,
       'email_verification_required',
-      'Verify your email address to continue',
+      'Please confirm your email address first.',
     );
   }
   next();
@@ -92,15 +96,15 @@ export const requireEmailVerified: RequestHandler = (req, _res, next) => {
 
 export function requireRole(...roles: UserRole[]): RequestHandler {
   return (req, _res, next) => {
-    if (!req.auth) throw new HttpError(401, 'unauthorized', 'Authentication required');
+    if (!req.auth) throw new HttpError(401, 'unauthorized', 'Please sign in to continue.');
     if (!roles.includes(req.auth.role)) {
-      throw new HttpError(403, 'forbidden', 'You do not have access to this resource');
+      throw new HttpError(403, 'forbidden', "You don't have access to this.");
     }
     next();
   };
 }
 
 export function getAuth(req: Request): AuthContext {
-  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Authentication required');
+  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Please sign in to continue.');
   return req.auth;
 }

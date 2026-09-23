@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'JobTok — Employer & Admin',
+  title: 'JobTok | Employer & Admin',
   description: 'Real People. Real Skills. Real Opportunities.',
 };
 

@@ -34,16 +34,22 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof ZodError) {
     return fail(res, 400, {
       code: 'validation_error',
-      message: 'Invalid request',
+      message: 'Please check the details and try again.',
       details: err.issues,
     });
   }
   // Client errors raised by Express/body-parser (malformed JSON, payload too large, ...).
   const status = (err as { status?: number }).status;
   if (typeof status === 'number' && status >= 400 && status < 500) {
-    return fail(res, status, { code: 'bad_request', message: 'Malformed request' });
+    return fail(res, status, {
+      code: 'bad_request',
+      message: "Something's wrong with that request. Please try again.",
+    });
   }
   // Log the error itself only: request bodies (passwords, codes) are never logged.
   console.error(err);
-  return fail(res, 500, { code: 'internal_error', message: 'Something went wrong' });
+  return fail(res, 500, {
+    code: 'internal_error',
+    message: 'Something went wrong on our side. Please try again.',
+  });
 };

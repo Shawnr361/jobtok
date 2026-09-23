@@ -25,7 +25,7 @@ export default function ResendVerificationPage() {
   }
 
   return (
-    <AuthCard title="Resend verification email">
+    <AuthCard title="Resend confirmation email">
       {done ? (
         <p className="text-sm text-muted" role="status">
           {done}

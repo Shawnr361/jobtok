@@ -1,7 +1,8 @@
-import { colors } from '@jobtok/tokens';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
+import { LogoMark } from '../components/Logo';
 import { useAuth } from '../lib/auth/AuthProvider';
+import { c } from '../theme';
 
 /** Decides where to go once the stored session has been checked. */
 export default function Index() {
@@ -13,12 +14,14 @@ export default function Index() {
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: colors.dark.background,
+          gap: 24,
+          backgroundColor: c.surface,
         }}
       >
-        <ActivityIndicator color={colors.dark.primaryHover} accessibilityLabel="Loading" />
+        <LogoMark size={64} />
+        <ActivityIndicator color={c.primary} accessibilityLabel="Loading" />
       </View>
     );
   }
-  return <Redirect href={status === 'signedIn' ? '/home' : '/welcome'} />;
+  return <Redirect href={status === 'signedIn' ? '/feed' : '/welcome'} />;
 }

@@ -32,7 +32,10 @@ export function createRateLimiter({ windowMs, limit, key, keyOnly, name }: RateL
     handler: (_req, res) => {
       const body: ApiResponse<never> = {
         ok: false,
-        error: { code: 'rate_limited', message: 'Too many requests. Please try again later.' },
+        error: {
+          code: 'rate_limited',
+          message: "You're going a little fast. Please wait a moment and try again.",
+        },
       };
       res.status(429).json(body);
     },

@@ -18,13 +18,13 @@ export async function transitionApplication(
     const [current] = await tx.$queryRaw<{ status: ApplicationStatus }[]>`
       SELECT status FROM applications WHERE id = ${applicationId}::uuid FOR UPDATE`;
     if (!current) {
-      throw new HttpError(404, 'application_not_found', 'Application not found');
+      throw new HttpError(404, 'application_not_found', "We couldn't find that application.");
     }
     if (!canTransitionApplication(current.status, to)) {
       throw new HttpError(
         409,
         'invalid_status_transition',
-        `Cannot move application from ${current.status} to ${to}`,
+        `This application can't move from ${current.status} to ${to}.`,
       );
     }
     return tx.application.update({ where: { id: applicationId }, data: { status: to } });

@@ -21,7 +21,7 @@ export function GoogleSignIn() {
   return (
     <View style={{ gap: 8 }}>
       <Button label="Continue with Google" variant="secondary" onPress={() => {}} disabled />
-      <Notice>Google sign-in is not configured for this build.</Notice>
+      <Notice>Google sign-in isn’t set up in this version yet.</Notice>
     </View>
   );
 }
@@ -36,8 +36,12 @@ function useFinishGoogle() {
       setBusy(true);
       setError(null);
       try {
-        await acceptSession(await authApi.google(idToken));
-        router.replace('/home');
+        const session = await authApi.google(idToken);
+        await acceptSession(session);
+        router.replace({
+          pathname: '/signed-in',
+          params: { fresh: session.isNewUser ? '1' : '0' },
+        });
       } catch (err) {
         setError(errorMessage(err));
       } finally {
@@ -65,9 +69,9 @@ function RealGoogleButton() {
     if (response.type === 'success') {
       const idToken = response.params.id_token;
       if (idToken) void finish(idToken);
-      else setError('Google did not return an ID token.');
+      else setError("Google didn't send back your sign-in details. Please try again.");
     } else if (response.type === 'error') {
-      setError('Google sign-in failed.');
+      setError("Google sign-in didn't work. Please try again.");
     }
   }, [response, finish, setError]);
 
@@ -91,17 +95,17 @@ function DevGoogleMock() {
   return (
     <View style={{ gap: 8 }}>
       <Notice>
-        DEVELOPMENT MOCK — not real Google. Signs in as the email below via a dev-only API path.
+        Test mode only. This isn’t real Google sign-in. It signs you in with the email below.
       </Notice>
       <Field
-        label="Mock Google email"
+        label="Test email"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
       />
       <Button
-        label="Continue with Google (dev mock)"
+        label="Continue with Google (test mode)"
         variant="secondary"
         loading={busy}
         disabled={!email.includes('@')}

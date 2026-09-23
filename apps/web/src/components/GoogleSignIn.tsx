@@ -57,7 +57,7 @@ export function GoogleSignIn() {
       <Button variant="secondary" disabled>
         Continue with Google
       </Button>
-      <p className="text-center text-xs text-muted">Google sign-in is not configured.</p>
+      <p className="text-center text-xs text-muted">Google sign-in isn’t set up yet.</p>
     </div>
   );
 }
@@ -102,10 +102,10 @@ function DevGoogleMock() {
   return (
     <div className="space-y-2">
       <Notice>
-        DEVELOPMENT MOCK — not real Google. Signs in as this email via a dev-only API path.
+        Test mode only. This isn’t real Google sign-in. It signs you in with this email.
       </Notice>
       <Field
-        label="Mock Google email"
+        label="Test email"
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
@@ -115,7 +115,7 @@ function DevGoogleMock() {
         disabled={!email.includes('@')}
         onClick={() => void finish(`dev-google:${email.trim().toLowerCase()}:${email.trim()}`)}
       >
-        Continue with Google (dev mock)
+        Continue with Google (test mode)
       </Button>
       <ErrorText message={error} />
     </div>

@@ -1,6 +1,6 @@
 import { ApiClientError, createAuthApi } from '@jobtok/api-client';
 import type { AuthSessionResponse, AuthUser } from '@jobtok/types';
-import * as SecureStore from 'expo-secure-store';
+import { tokenStore } from './tokenStore';
 import {
   createContext,
   useCallback,
@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { API_URL } from '../config';
 
-// The refresh token lives only in the OS keychain/keystore (SecureStore).
+// The refresh token lives only in the OS keychain/keystore (see tokenStore; memory on web).
 // The short-lived access token is kept in memory and never persisted.
 const REFRESH_TOKEN_KEY = 'jobtok.refreshToken';
 
@@ -41,14 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clear = useCallback(async () => {
     access.current = null;
-    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    await tokenStore.remove(REFRESH_TOKEN_KEY);
     setUser(null);
     setStatus('signedOut');
   }, []);
 
   const acceptSession = useCallback(async (session: AuthSessionResponse) => {
     if (!session.refreshToken) throw new Error('Mobile session without refresh token');
-    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, session.refreshToken);
+    await tokenStore.set(REFRESH_TOKEN_KEY, session.refreshToken);
     access.current = {
       token: session.accessToken,
       expiresAt: new Date(session.accessTokenExpiresAt).getTime(),
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback((): Promise<string> => {
     refreshing.current ??= (async () => {
       try {
-        const stored = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+        const stored = await tokenStore.get(REFRESH_TOKEN_KEY);
         if (!stored) throw new ApiClientError(401, 'signed_out', 'Signed out');
         const session = await authApi.refresh(stored);
         await acceptSession(session);
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const logout = useCallback(async () => {
-    const stored = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+    const stored = await tokenStore.get(REFRESH_TOKEN_KEY);
     try {
       await authApi.logout(access.current?.token, stored ?? undefined);
     } catch {

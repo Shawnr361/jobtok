@@ -33,11 +33,20 @@ const invalidCredentials = () =>
   new HttpError(
     401,
     'invalid_credentials',
-    'Email or password is incorrect, or the email address has not been verified yet',
+    "Wrong email or password, or your email isn't confirmed yet.",
   );
-const suspended = () => new HttpError(403, 'account_suspended', 'This account is suspended');
+const suspended = () =>
+  new HttpError(
+    403,
+    'account_suspended',
+    'This account has been suspended. Please contact support if you think this is a mistake.',
+  );
 const invalidLink = () =>
-  new HttpError(400, 'invalid_or_expired_token', 'This link is invalid or has expired');
+  new HttpError(
+    400,
+    'invalid_or_expired_token',
+    'This link has expired or was already used. Please ask for a new one.',
+  );
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -107,9 +116,10 @@ export class AuthService {
       to: email,
       subject: 'You already have a JobTok account',
       text:
-        'Someone tried to create a JobTok account with this email address, but one already exists.\n' +
-        `If this was you, sign in, or reset your password here: ${new URL('/forgot-password', this.deps.config.appWebUrl).toString()}\n` +
-        "If it wasn't you, you can ignore this email.",
+        'Hi there,\n\n' +
+        'Someone just tried to sign up for JobTok with this email, but you already have an account.\n\n' +
+        `If that was you, just sign in. Forgot your password? You can reset it here: ${new URL('/forgot-password', this.deps.config.appWebUrl).toString()}\n\n` +
+        "If it wasn't you, you can safely ignore this email.",
     });
   }
 
@@ -156,7 +166,7 @@ export class AuthService {
       throw new HttpError(
         409,
         'phone_in_use',
-        'This number is already linked to another JobTok account. Sign in with it instead.',
+        'This number already belongs to another JobTok account. Try signing in with it instead.',
       );
     }
     try {
@@ -166,7 +176,7 @@ export class AuthService {
         throw new HttpError(
           409,
           'phone_in_use',
-          'This number is already linked to another JobTok account.',
+          'This number already belongs to another JobTok account.',
         );
       }
       throw err;
@@ -180,10 +190,14 @@ export class AuthService {
       return await this.deps.google.verify(idToken);
     } catch (err) {
       if (err instanceof GoogleNotConfiguredError) {
-        throw new HttpError(503, 'google_not_configured', 'Google sign-in is not available yet');
+        throw new HttpError(503, 'google_not_configured', "Google sign-in isn't available yet.");
       }
       if (err instanceof InvalidGoogleTokenError) {
-        throw new HttpError(401, 'invalid_google_token', 'Google sign-in could not be verified');
+        throw new HttpError(
+          401,
+          'invalid_google_token',
+          "We couldn't sign you in with Google. Please try again.",
+        );
       }
       throw err;
     }
@@ -213,7 +227,7 @@ export class AuthService {
         throw new HttpError(
           409,
           'google_account_in_use',
-          'This Google account is linked to another JobTok account',
+          'This Google account is already connected to a different JobTok account.',
         );
       }
       if (!linked) {
@@ -224,7 +238,7 @@ export class AuthService {
           throw new HttpError(
             409,
             'google_already_linked',
-            'A different Google account is already linked',
+            'You already have a different Google account connected.',
           );
         }
         await this.db.oAuthAccount.create({
@@ -253,7 +267,7 @@ export class AuthService {
           throw new HttpError(
             409,
             'account_link_requires_sign_in',
-            'An account with this email already exists. Sign in with your password or phone, then link Google.',
+            'You already have an account with this email. Sign in with your password or phone first, then connect Google.',
           );
         }
         if (byEmail.isSuspended) throw suspended();
@@ -275,7 +289,7 @@ export class AuthService {
       throw new HttpError(
         400,
         'google_email_unverified',
-        'Your Google account has no verified email',
+        "Your Google account doesn't have a confirmed email address.",
       );
     }
     const user = await this.db.user.create({
@@ -342,8 +356,8 @@ export class AuthService {
     );
     await this.deps.email.send({
       to: user.email,
-      subject: 'Verify your JobTok email',
-      text: `Confirm your email address: ${this.link('/verify-email', token)}\nThis link expires in ${this.deps.config.emailVerificationTtlHours} hours. If you did not create a JobTok account, ignore this email.`,
+      subject: 'Confirm your JobTok email',
+      text: `Welcome to JobTok!\n\nTap the link below to confirm your email address:\n${this.link('/verify-email', token)}\n\nThe link works for ${this.deps.config.emailVerificationTtlHours} hours. If you didn't sign up, you can ignore this email.`,
     });
   }
 
@@ -393,7 +407,7 @@ export class AuthService {
     await this.deps.email.send({
       to: email,
       subject: 'Reset your JobTok password',
-      text: `Reset your password: ${this.link('/reset-password', token)}\nThis link expires in ${this.deps.config.passwordResetTtlMinutes} minutes. If you didn't ask for this, ignore this email.`,
+      text: `Need a new password? No problem.\n\nReset it here:\n${this.link('/reset-password', token)}\n\nThe link works for ${this.deps.config.passwordResetTtlMinutes} minutes. If you didn't ask for this, you can ignore this email and your password won't change.`,
     });
   }
 

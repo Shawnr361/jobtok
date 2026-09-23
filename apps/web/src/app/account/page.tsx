@@ -31,7 +31,7 @@ export default function AccountPage() {
     setError(null);
     try {
       await authApi.requestEmailVerification(await getAccessToken());
-      setInfo('Verification email sent.');
+      setInfo("Check your inbox. We've sent you a new link.");
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -69,7 +69,7 @@ export default function AccountPage() {
       )}
       {user.email && !user.verification.email && (
         <Button variant="secondary" onClick={() => void resendEmail()}>
-          Resend email verification
+          Resend confirmation email
         </Button>
       )}
       {info && <p className="text-sm text-success">{info}</p>}
