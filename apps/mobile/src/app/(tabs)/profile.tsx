@@ -12,7 +12,7 @@ import { alpha, c, radii, shadow, type } from '../../theme';
 
 /**
  * The signed-in user's own profile in the design's layout. Only real account data is shown;
- * profile details (name, skills, pitches) arrive with profile setup in a later step.
+ * profile details (name, skills, videos) arrive with profile setup in a later step.
  */
 export default function MyProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -53,24 +53,24 @@ export default function MyProfileScreen() {
           name={display}
           verified={user.verification.phone}
           handleLine={user.phone ?? user.email ?? ''}
-          headline="Soon you'll add your name, skills and a 60-second pitch here, so employers can find you."
+          headline="Your work speaks for you. Soon you'll add your skills and videos here so people can see what you make."
           status={user.verification.phone ? 'Phone verified' : 'Phone not verified'}
           stats={null}
           action={{
-            label: 'Record Your Pitch',
+            label: 'Show your work',
             icon: 'videocam',
             onPress: () => router.push('/create'),
           }}
           skills={[]}
           skillsEmpty="No skills yet. You'll be able to add them soon."
-          pitches={[]}
-          pitchTile={{
-            title: 'Record First Pitch',
-            subtitle: '60 seconds max',
+          works={[]}
+          workTile={{
+            title: 'Post your first video',
+            subtitle: 'Show us what you can do',
             icon: 'videocam',
             onPress: () => router.push('/create'),
           }}
-          caseStudies={[]}
+          projects={[]}
           reviews={[]}
           footer={
             <Glass tint={alpha(c.surfaceContainer, 0.7)} style={[styles.account, shadow('md')]}>
@@ -88,7 +88,7 @@ export default function MyProfileScreen() {
 
               {!user.verification.phone && (
                 <>
-                  <Notice>Verify your phone number to start using JobTok.</Notice>
+                  <Notice>Verify your phone number to post, message and connect on JobTok.</Notice>
                   <Button
                     label="Verify phone"
                     onPress={() => router.push('/phone?purpose=verify_phone')}

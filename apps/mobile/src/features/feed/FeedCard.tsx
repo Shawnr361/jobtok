@@ -1,12 +1,13 @@
 // One full-height "video" in the feed (design: jobtok_video_feed). Video playback arrives with
-// the showcase pipeline; until then the poster image stands in for the video.
+// the upload pipeline; until then the poster image stands in for the video.
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Cover, Glass, Gradient, Icon, PulseDot, Scrim, Spin } from '../../components/primitives';
+import { useState } from 'react';
+import { Animated, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Cover, Glass, Gradient, Icon, Scrim, Spin } from '../../components/primitives';
+import { SpinningGem } from '../../components/animations/SpinningGem';
+import { useOnce } from '../../components/animations/useLoop';
 import { alpha, c, glow, gradients, radii, shadow, type } from '../../theme';
-import { useAuth } from '../../lib/auth/AuthProvider';
-import { images, type Talent } from '../demo/data';
+import { images, type Learn, type Talent } from '../demo/data';
 
 function RailButton({
   icon,
@@ -42,38 +43,45 @@ function RailButton({
 /** Height reserved at the top of each card for the fixed feed tabs overlay. */
 export const FEED_TABS_HEIGHT = 56;
 
+/** Which feed tab the card is shown in; changes the label at the top of the card. */
+export type FeedContext = 'default' | 'learn' | 'near';
+
 export function FeedCard({
   talent,
   height,
+  context = 'default',
   following,
   onToggleFollow,
 }: {
   talent: Talent;
   height: number;
+  context?: FeedContext;
   following: boolean;
   onToggleFollow: () => void;
 }) {
   const router = useRouter();
-  const { user } = useAuth();
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [applyNote, setApplyNote] = useState(false);
+  const [learnOpen, setLearnOpen] = useState(false);
   const f = talent.feed;
+  const openProfile = () => router.push(`/talent/${talent.id}`);
 
-  useEffect(() => {
-    if (!applyNote) return;
-    const t = setTimeout(() => setApplyNote(false), 2400);
-    return () => clearTimeout(t);
-  }, [applyNote]);
-
-  function quickApply() {
-    // Spec: phone verification is mandatory before applying.
-    if (user && !user.verification.phone) {
-      router.push('/phone?purpose=verify_phone');
-      return;
+  async function share() {
+    try {
+      await Share.share({
+        message: `Watch this on JobTok: “${f.title}” by ${talent.name} (${talent.handle}).`,
+      });
+    } catch {
+      // Sharing isn't available here (e.g. some desktop browsers). Nothing to do.
     }
-    setApplyNote(true); // applications open in a later step
   }
+
+  const pill =
+    context === 'near'
+      ? { icon: 'near-me' as const, text: `Near you • ${talent.city}` }
+      : context === 'learn' && f.learn
+        ? { icon: 'lightbulb-outline' as const, text: 'Learn this' }
+        : null;
 
   return (
     <View style={[styles.page, { height }]}>
@@ -99,82 +107,71 @@ export function FeedCard({
         {/* Room for the fixed feed tabs overlay */}
         <View style={{ height: FEED_TABS_HEIGHT }} />
 
-        {/* Match pill */}
-        <View style={styles.matchRow}>
-          <Glass tint={alpha(c.surfaceContainerHigh, 0.8)} style={styles.matchPill}>
-            <PulseDot />
-            <Text style={[type.labelSm, styles.matchText]}>{f.match}% MATCH FOR YOUR PROJECT</Text>
+        {/* Context pill: the category, or why this video is in this tab */}
+        <View style={styles.topRow}>
+          <Glass tint={alpha(c.surfaceContainerHigh, 0.8)} style={styles.topPill}>
+            {pill ? (
+              <Icon name={pill.icon} size={14} color={c.secondary} />
+            ) : (
+              <SpinningGem size={16} />
+            )}
+            <Text style={[type.labelSm, styles.topText]}>{pill?.text ?? talent.category}</Text>
           </Glass>
         </View>
 
         {/* Bottom details + right rail */}
         <View style={styles.bottom}>
           <View style={styles.details}>
-            <View style={styles.badges}>
-              <Glass tint={alpha(c.surfaceContainerHighest, 0.8)} style={styles.badge}>
-                <Icon name={f.kindIcon} size={12} color={c.secondary} />
-                <Text style={[type.labelSm, { color: c.onSurface }]}>{f.kind}</Text>
-              </Glass>
-              <Glass tint={alpha(c.surfaceContainerHighest, 0.8)} style={styles.badge}>
-                <Icon name="verified" size={12} color={c.primary} />
-                <Text style={[type.labelSm, { color: c.primaryFixedDim }]}>Verified Pro</Text>
-              </Glass>
-              {f.rate && (
-                <View style={[styles.badge, { backgroundColor: alpha(c.secondaryContainer, 0.2) }]}>
-                  <Text style={[type.labelSm, { color: c.secondary }]}>{f.rate}</Text>
-                </View>
-              )}
-            </View>
-
             <View style={styles.nameRow}>
-              <Text style={[type.headlineSm, { color: c.onSurface }]} numberOfLines={1}>
-                {talent.name}
-              </Text>
+              <Pressable onPress={openProfile} accessibilityRole="link" style={{ flexShrink: 1 }}>
+                <Text style={[type.labelLg, styles.name]} numberOfLines={1}>
+                  {talent.name}
+                </Text>
+              </Pressable>
+              <Icon name="verified" size={14} color={c.primary} />
               <Text style={[type.bodySm, styles.handle]} numberOfLines={1}>
                 {talent.handle}
               </Text>
             </View>
 
-            <Text style={[type.bodyMd, styles.pitch]} numberOfLines={3}>
-              {f.pitch}
+            {/* What is happening in the video */}
+            <Text style={[type.headlineSm, styles.title]} numberOfLines={2}>
+              {f.title}
+            </Text>
+            <Text style={[type.bodyMd, styles.caption]} numberOfLines={2}>
+              {f.caption}
             </Text>
 
             <View style={styles.location}>
-              <Icon name="location-on" size={14} color={c.secondary} />
-              <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>{talent.location}</Text>
+              <Icon name={f.icon} size={14} color={c.secondary} />
+              <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>{talent.role}</Text>
               <Text style={[type.bodySm, { color: c.onSurfaceVariant, opacity: 0.5 }]}>•</Text>
-              <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>{f.availability}</Text>
+              <Icon name="location-on" size={14} color={c.secondary} />
+              <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>{talent.city}</Text>
             </View>
 
             <View style={styles.actions}>
-              <Pressable
-                onPress={quickApply}
-                accessibilityRole="button"
-                accessibilityLabel="Quick Apply"
-                style={({ pressed }) => [{ flex: 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-              >
-                {applyNote ? (
-                  <View style={[styles.apply, { backgroundColor: c.secondaryContainer }]}>
-                    <Icon name="schedule" size={16} color={c.onSecondaryContainer} />
-                    <Text style={[type.labelLg, { color: c.onSecondaryContainer }]}>
-                      Applying opens soon
-                    </Text>
-                  </View>
-                ) : (
-                  <Gradient colors={gradients.apply} style={[styles.apply, glow('primary')]}>
-                    <Icon name="send" size={16} color={c.onPrimary} />
-                    <Text style={[type.labelLg, { color: c.onPrimary }]}>Quick Apply</Text>
+              {f.learn ? (
+                <Pressable
+                  onPress={() => setLearnOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Learn this"
+                  style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                >
+                  <Gradient colors={gradients.apply} style={[styles.primary, glow('primary')]}>
+                    <Icon name="lightbulb-outline" size={16} color={c.onPrimary} />
+                    <Text style={[type.labelLg, { color: c.onPrimary }]}>Learn this</Text>
                   </Gradient>
-                )}
-              </Pressable>
+                </Pressable>
+              ) : null}
               <Pressable
-                onPress={() => router.push(`/talent/${talent.id}`)}
+                onPress={openProfile}
                 accessibilityRole="button"
-                accessibilityLabel={`${talent.name}'s portfolio`}
+                accessibilityLabel={`See ${talent.name}'s work`}
               >
-                <Glass tint={alpha(c.surfaceContainerHigh, 0.8)} style={styles.portfolio}>
+                <Glass tint={alpha(c.surfaceContainerHigh, 0.8)} style={styles.secondary}>
                   <Icon name="grid-view" size={14} color={c.secondary} />
-                  <Text style={[type.labelMd, { color: c.onSurface }]}>Portfolio</Text>
+                  <Text style={[type.labelMd, { color: c.onSurface }]}>Their work</Text>
                   <Icon name="north-east" size={12} color={c.onSurface} />
                 </Glass>
               </Pressable>
@@ -192,9 +189,11 @@ export function FeedCard({
 
           <View style={styles.rail}>
             <View style={styles.creator}>
-              <Gradient colors={gradients.ring} diagonal style={styles.creatorRing}>
-                <Image source={talent.avatar} style={styles.creatorAvatar} />
-              </Gradient>
+              <Pressable onPress={openProfile} accessibilityLabel={`${talent.name}'s profile`}>
+                <Gradient colors={gradients.ring} diagonal style={styles.creatorRing}>
+                  <Image source={talent.avatar} style={styles.creatorAvatar} />
+                </Gradient>
+              </Pressable>
               <Pressable
                 onPress={onToggleFollow}
                 accessibilityRole="button"
@@ -219,13 +218,13 @@ export function FeedCard({
             <RailButton icon="chat-bubble" count={f.comments} label="Comments" />
             <RailButton
               icon={saved ? 'bookmark' : 'bookmark-border'}
-              count={f.saves}
-              label="Save"
+              count={saved ? bump(f.saves) : f.saves}
+              label={saved ? 'Saved for later' : 'Save for later'}
               active={saved}
               activeColor={c.secondary}
               onPress={() => setSaved((v) => !v)}
             />
-            <RailButton icon="share" count={f.shares} label="Share" />
+            <RailButton icon="share" count={f.shares} label="Share" onPress={() => void share()} />
             <Spin>
               <View style={[styles.disc, shadow('xl')]}>
                 <Image source={images.soundDisc} style={styles.discImage} />
@@ -238,7 +237,118 @@ export function FeedCard({
         <View style={styles.progressTrack}>
           <Gradient colors={gradients.apply} style={styles.progress} />
         </View>
+
+        {f.learn && learnOpen && (
+          <LearnPanel
+            learn={f.learn}
+            title={f.title}
+            saved={saved}
+            onSave={() => setSaved((v) => !v)}
+            onClose={() => setLearnOpen(false)}
+          />
+        )}
       </View>
+    </View>
+  );
+}
+
+/** Lightweight "Learn this" sheet that slides up over the video. */
+function LearnPanel({
+  learn,
+  title,
+  saved,
+  onSave,
+  onClose,
+}: {
+  learn: Learn;
+  title: string;
+  saved: boolean;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const t = useOnce(280);
+  const translateY = t.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
+
+  const sections: {
+    icon: React.ComponentProps<typeof Icon>['name'];
+    label: string;
+    items?: string[];
+  }[] = [
+    { icon: 'handyman', label: 'Tools', items: learn.tools },
+    { icon: 'inventory-2', label: 'Materials', items: learn.materials },
+    { icon: 'format-list-numbered', label: 'Steps', items: learn.steps },
+    { icon: 'tips-and-updates', label: 'Tips', items: learn.tips },
+  ];
+
+  return (
+    <View style={styles.sheetWrap}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel="Close" />
+      <Animated.View style={{ opacity: t, transform: [{ translateY }] }}>
+        <Glass tint={alpha(c.surfaceContainer, 0.94)} style={styles.sheet}>
+          <View style={styles.sheetHead}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[type.labelSm, { color: c.secondary, letterSpacing: 1 }]}>
+                LEARN THIS
+              </Text>
+              <Text style={[type.headlineSm, { color: c.onSurface }]} numberOfLines={2}>
+                {title}
+              </Text>
+            </View>
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              hitSlop={8}
+              style={styles.sheetClose}
+            >
+              <Icon name="close" size={20} color={c.onSurface} />
+            </Pressable>
+          </View>
+
+          {sections
+            .filter((s) => s.items?.length)
+            .map((s) => (
+              <View key={s.label} style={{ gap: 6 }}>
+                <View style={styles.sheetLabel}>
+                  <Icon name={s.icon} size={14} color={c.primary} />
+                  <Text style={[type.labelMd, { color: c.onSurface }]}>{s.label}</Text>
+                </View>
+                {s.label === 'Tools' || s.label === 'Materials' ? (
+                  <View style={styles.chips}>
+                    {s.items!.map((item) => (
+                      <View key={item} style={styles.chip}>
+                        <Text style={[type.labelSm, { color: c.onSurface }]}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  s.items!.map((item, i) => (
+                    <Text key={item} style={[type.bodySm, { color: c.onSurfaceVariant }]}>
+                      {s.label === 'Steps' ? `${i + 1}. ` : ''}
+                      {item}
+                    </Text>
+                  ))
+                )}
+              </View>
+            ))}
+
+          <Pressable
+            onPress={onSave}
+            accessibilityRole="button"
+            accessibilityState={{ selected: saved }}
+            style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Icon
+              name={saved ? 'bookmark' : 'bookmark-add'}
+              size={18}
+              color={saved ? c.secondary : c.onSurface}
+            />
+            <Text style={[type.labelLg, { color: saved ? c.secondary : c.onSurface }]}>
+              {saved ? 'Saved for later' : 'Save for later'}
+            </Text>
+          </Pressable>
+        </Glass>
+      </Animated.View>
     </View>
   );
 }
@@ -260,8 +370,8 @@ const styles = StyleSheet.create({
     backgroundColor: c.surfaceContainerLowest,
     justifyContent: 'space-between',
   },
-  matchRow: { paddingHorizontal: 16, flexDirection: 'row' },
-  matchPill: {
+  topRow: { paddingHorizontal: 16, flexDirection: 'row' },
+  topPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -269,7 +379,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: radii.pill,
   },
-  matchText: { color: c.secondary, letterSpacing: 1, textTransform: 'uppercase' },
+  topText: { color: c.secondary, letterSpacing: 1, textTransform: 'uppercase' },
   bottom: {
     paddingHorizontal: 16,
     paddingBottom: 24,
@@ -278,26 +388,24 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   details: { flex: 1, minWidth: 0, gap: 8, paddingRight: 4 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: radii.pill,
-  },
-  nameRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, paddingTop: 2 },
-  handle: { color: c.onSurfaceVariant, fontFamily: 'Inter_500Medium', flexShrink: 1 },
-  pitch: {
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingTop: 2 },
+  name: { color: c.onSurface, fontFamily: 'PlusJakartaSans_700Bold' },
+  title: {
     color: c.onSurface,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 4,
     textShadowOffset: { width: 0, height: 1 },
   },
-  location: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  handle: { color: c.onSurfaceVariant, fontFamily: 'Inter_500Medium', flexShrink: 1 },
+  caption: {
+    color: c.onSurfaceVariant,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 4,
+    textShadowOffset: { width: 0, height: 1 },
+  },
+  location: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingTop: 4 },
-  apply: {
+  primary: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: radii.pill,
@@ -306,7 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  portfolio: {
+  secondary: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: radii.pill,
@@ -365,4 +473,55 @@ const styles = StyleSheet.create({
     backgroundColor: alpha(c.surfaceContainerHighest, 0.4),
   },
   progress: { width: '40%', height: '100%' },
+  sheetWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+  },
+  sheetBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: alpha(c.surfaceContainerLowest, 0.5),
+  },
+  sheet: {
+    margin: 8,
+    padding: 16,
+    gap: 14,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  sheetClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surfaceContainerHighest,
+  },
+  sheetLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: c.surfaceContainerHighest,
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 48,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
 });

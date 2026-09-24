@@ -62,7 +62,13 @@ function Status({
 export default function SignedInScreen() {
   const router = useRouter();
   const { user, status } = useAuth();
-  const { fresh, reason } = useLocalSearchParams<{ fresh?: string; reason?: string }>();
+  const { fresh, reason, next } = useLocalSearchParams<{
+    fresh?: string;
+    reason?: string;
+    next?: string;
+  }>();
+  // Only known destinations, never an arbitrary path from the URL.
+  const destination = next === 'create' ? '/create' : '/feed';
 
   const phoneDone = Boolean(user?.verification.phone);
   const autoContinue = phoneDone;
@@ -74,9 +80,9 @@ export default function SignedInScreen() {
 
   useEffect(() => {
     if (!autoContinue) return;
-    const t = setTimeout(() => router.replace('/feed'), STATUS_START + 500 + AUTO_CONTINUE_MS);
+    const t = setTimeout(() => router.replace(destination), STATUS_START + 500 + AUTO_CONTINUE_MS);
     return () => clearTimeout(t);
-  }, [autoContinue, router]);
+  }, [autoContinue, router, destination]);
 
   if (status === 'signedOut' || (!user && status !== 'loading'))
     return <Redirect href="/welcome" />;
@@ -84,10 +90,13 @@ export default function SignedInScreen() {
 
   const copy =
     reason === 'phone'
-      ? { title: 'Phone verified!', body: 'You’re all set to apply, post and connect on JobTok.' }
+      ? { title: 'Phone verified!', body: 'You’re all set to post, message and connect on JobTok.' }
       : fresh === '1'
-        ? { title: 'You’re in!', body: 'Welcome to JobTok. Now show them what you can do.' }
-        : { title: 'Welcome back!', body: 'Good to see you again. Your feed is ready.' };
+        ? {
+            title: 'You’re in!',
+            body: 'Welcome to JobTok. Go see what people are making, then show us what you can do.',
+          }
+        : { title: 'Welcome back!', body: 'Good to see you again. There’s new work to discover.' };
 
   const statuses: { icon: IconName; label: string; done: boolean }[] = [
     {
@@ -132,12 +141,20 @@ export default function SignedInScreen() {
         <View style={styles.footer}>
           {autoContinue ? (
             <>
-              <View style={styles.track} accessibilityLabel="Taking you to your feed">
+              <View
+                style={styles.track}
+                accessibilityLabel={
+                  next === 'create' ? 'Opening the studio' : 'Taking you to your feed'
+                }
+              >
                 <Animated.View style={{ width: barWidth, height: '100%' }}>
                   <Gradient colors={gradients.apply} style={{ flex: 1 }} />
                 </Animated.View>
               </View>
-              <Button label="Go to my feed" onPress={() => router.replace('/feed')} />
+              <Button
+                label={next === 'create' ? 'Show your skills' : 'Start exploring'}
+                onPress={() => router.replace(destination)}
+              />
             </>
           ) : (
             <>

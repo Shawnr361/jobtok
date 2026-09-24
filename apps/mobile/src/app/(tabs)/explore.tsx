@@ -5,24 +5,32 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppHeader, HEADER_BODY_HEIGHT } from '../../components/AppHeader';
 import { DOCK_BODY_HEIGHT } from '../../components/NavDock';
 import { Chip, Gradient, Icon, IconButton } from '../../components/primitives';
-import { exploreFilters, exploreTalents } from '../../features/demo/data';
+import { SAMPLE_HOME_CITY, exploreFilters, exploreTalents } from '../../features/demo/data';
 import { TalentCard } from '../../features/explore/TalentCard';
 import { alpha, c, radii, shadow, type } from '../../theme';
 
-/** Search & discover talent (design: jobtok_explore_talent_search). */
+/** Discover skills and creators by category, search or place (design: jobtok_explore_talent_search). */
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   // Opened from the feed search button: put the cursor straight in the search box.
   const { focus } = useLocalSearchParams<{ focus?: string }>();
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState<string>('All');
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     return exploreTalents.filter((t) => {
-      const matchesFilter = filter === 'All' || t.tags.includes(filter);
-      const haystack = [t.name, t.role, t.location, t.bio, ...t.skills.map((s) => s.label)]
+      const matchesFilter = filter === 'All' || t.category === filter;
+      const haystack = [
+        t.name,
+        t.role,
+        t.location,
+        t.bio,
+        t.category,
+        t.feed.title,
+        ...t.skills.map((s) => s.label),
+      ]
         .join(' ')
         .toLowerCase();
       return matchesFilter && (!q || haystack.includes(q));
@@ -48,10 +56,10 @@ export default function ExploreScreen() {
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search jobs, skills, candidates..."
+                placeholder="Search skills, creators, ideas..."
                 placeholderTextColor={c.outline}
                 style={[type.bodyMd, styles.input]}
-                accessibilityLabel="Search jobs, skills, candidates"
+                accessibilityLabel="Search skills, creators and ideas"
                 returnKeyType="search"
                 autoFocus={focus === 'search'}
               />
@@ -82,24 +90,24 @@ export default function ExploreScreen() {
           </ScrollView>
         </View>
 
-        {/* Live stats */}
-        <View style={[styles.stats, shadow('md')]}>
-          <Stat
-            icon="videocam"
-            value="1,420"
-            label="Active Video Jobs"
-            color={c.secondary}
-            tint={c.secondaryContainer}
-          />
-          <View style={styles.divider} />
-          <Stat
-            icon="verified"
-            value="8,500+"
-            label="Verified Pros"
-            color={c.primary}
-            tint={c.primaryContainer}
-          />
-        </View>
+        {/* Near you: city level only, never a precise address */}
+        <Pressable
+          onPress={() => router.navigate({ pathname: '/feed', params: { tab: 'Near You' } })}
+          accessibilityRole="button"
+          accessibilityLabel={`Talented people near you in ${SAMPLE_HOME_CITY}`}
+          style={({ pressed }) => [styles.near, shadow('md'), pressed && { opacity: 0.85 }]}
+        >
+          <View style={styles.nearIcon}>
+            <Icon name="near-me" size={20} color={c.secondary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[type.labelLg, { color: c.onSurface }]}>Talented people near you</Text>
+            <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>
+              See what people are making around {SAMPLE_HOME_CITY}
+            </Text>
+          </View>
+          <Icon name="chevron-right" size={22} color={c.onSurfaceVariant} />
+        </Pressable>
 
         {results.map((t) => (
           <TalentCard key={t.id} talent={t} />
@@ -108,7 +116,9 @@ export default function ExploreScreen() {
           <View style={styles.empty}>
             <Icon name="search" size={28} color={c.outline} />
             <Text style={[type.bodyMd, { color: c.onSurfaceVariant, textAlign: 'center' }]}>
-              No one matches “{query}” yet. Try another skill or city.
+              {query.trim()
+                ? `Nothing matches “${query.trim()}” yet. Try another skill or city.`
+                : `No ${filter} videos yet. Be the first to show what you can do.`}
             </Text>
           </View>
         )}
@@ -119,15 +129,15 @@ export default function ExploreScreen() {
           style={[styles.callout, shadow('xl')]}
         >
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[type.headlineSm, { color: c.onSurface }]}>Got Skills to Show?</Text>
+            <Text style={[type.headlineSm, { color: c.onSurface }]}>What can you do?</Text>
             <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>
-              Post a 60-second video and get noticed directly by top recruiters.
+              Show us. Post a short video of your work and let it speak for you.
             </Text>
           </View>
           <Pressable
             onPress={() => router.push('/create')}
             accessibilityRole="button"
-            accessibilityLabel="Upload video resume"
+            accessibilityLabel="Create a video"
             style={[styles.calloutBtn, shadow('md')]}
           >
             <Icon name="video-call" size={24} color={c.onSecondary} />
@@ -135,39 +145,6 @@ export default function ExploreScreen() {
         </Gradient>
       </ScrollView>
       <AppHeader title="Explore" />
-    </View>
-  );
-}
-
-function Stat({
-  icon,
-  value,
-  label,
-  color,
-  tint,
-}: {
-  icon: 'videocam' | 'verified';
-  value: string;
-  label: string;
-  color: string;
-  tint: string;
-}) {
-  return (
-    <View style={styles.stat}>
-      <View style={[styles.statIcon, { backgroundColor: alpha(tint, 0.2) }]}>
-        <Icon name={icon} size={18} color={color} />
-      </View>
-      <View>
-        <Text
-          style={[
-            type.headlineSm,
-            { color, fontFamily: 'PlusJakartaSans_700Bold', lineHeight: 22 },
-          ]}
-        >
-          {value}
-        </Text>
-        <Text style={[type.labelSm, { color: c.onSurfaceVariant }]}>{label}</Text>
-      </View>
     </View>
   );
 }
@@ -187,23 +164,22 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, color: c.onSurface, paddingVertical: 2 },
   filters: { gap: 4, paddingVertical: 4 },
-  stats: {
-    backgroundColor: c.surfaceContainerLow,
-    borderRadius: radii.card,
-    padding: 8,
+  near: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
+    padding: 12,
+    borderRadius: radii.card,
+    backgroundColor: c.surfaceContainerLow,
   },
-  stat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  nearIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: alpha(c.secondaryContainer, 0.2),
   },
-  divider: { width: 1, height: 24, backgroundColor: c.surfaceVariant },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 24 },
   callout: {
     padding: 16,

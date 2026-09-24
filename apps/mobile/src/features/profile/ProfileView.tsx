@@ -1,4 +1,4 @@
-// Candidate profile & portfolio layout (design: jobtok_candidate_profile_portfolio).
+// Creator profile: a living portfolio, not a CV (design: jobtok_candidate_profile_portfolio).
 import { useState, type ReactNode } from 'react';
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import {
@@ -12,13 +12,12 @@ import {
 } from '../../components/primitives';
 import { alpha, c, glow, gradients, radii, shadow, type } from '../../theme';
 import { skillStyle } from '../explore/TalentCard';
-import type { Pitch, Skill, Talent } from '../demo/data';
+import type { Skill, Talent, Work } from '../demo/data';
 
 export interface ProfileViewProps {
   avatar: ImageSourcePropType | null;
   initials?: string;
   name: string;
-  pro?: boolean;
   /** Verified crest on the avatar. */
   verified?: boolean;
   handleLine: string;
@@ -28,23 +27,22 @@ export interface ProfileViewProps {
   stats: Talent['stats'] | null;
   action: { label: string; icon: IconName; onPress: () => void };
   onBookmark?: () => void;
+  onShare?: () => void;
   bookmarked?: boolean;
   skills: Skill[];
   skillsEmpty?: string;
-  pitches: Pitch[];
-  pitchTile: { title: string; subtitle: string; icon: IconName; onPress: () => void };
-  caseStudies: Talent['caseStudies'];
+  works: Work[];
+  workTile: { title: string; subtitle: string; icon: IconName; onPress: () => void };
+  projects: Talent['projects'];
   reviews: Talent['reviews'];
-  /** Shows the verified-credential strip (only when ID & references really are verified). */
-  certified?: boolean;
   /** Extra content under the portfolio tabs (e.g. account settings on "my profile"). */
   footer?: ReactNode;
 }
 
-type Tab = 'pitches' | 'cases' | 'reviews';
+type Tab = 'work' | 'projects' | 'reviews';
 
 export function ProfileView(p: ProfileViewProps) {
-  const [tab, setTab] = useState<Tab>('pitches');
+  const [tab, setTab] = useState<Tab>('work');
 
   return (
     <View style={styles.wrap}>
@@ -77,11 +75,6 @@ export function ProfileView(p: ProfileViewProps) {
           <Text style={[type.headlineLgMobile, { color: c.onSurface }]} numberOfLines={1}>
             {p.name}
           </Text>
-          {p.pro && (
-            <View style={styles.pro}>
-              <Text style={[type.labelSm, { color: c.secondary, letterSpacing: 0.8 }]}>PRO</Text>
-            </View>
-          )}
         </View>
         <Text style={[type.labelMd, { color: c.primary, marginTop: 2 }]}>{p.handleLine}</Text>
         <Text style={[type.bodyMd, styles.headline]}>{p.headline}</Text>
@@ -151,6 +144,7 @@ export function ProfileView(p: ProfileViewProps) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Share profile"
+          onPress={p.onShare}
           style={[styles.round, shadow('md')]}
         >
           <Icon name="share" size={20} color={c.onSurface} />
@@ -160,13 +154,7 @@ export function ProfileView(p: ProfileViewProps) {
       {/* Verified skills */}
       <View style={{ gap: 8 }}>
         <View style={styles.sectionHead}>
-          <Text style={[type.labelMd, styles.sectionTitle]}>Verified Skills</Text>
-          {p.skills.length > 0 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-              <Icon name="verified" size={12} color={c.secondary} />
-              <Text style={[type.labelSm, { color: c.secondary }]}>100% Validated</Text>
-            </View>
-          )}
+          <Text style={[type.labelMd, styles.sectionTitle]}>Skills</Text>
         </View>
         {p.skills.length > 0 ? (
           <View style={styles.skills}>
@@ -195,15 +183,15 @@ export function ProfileView(p: ProfileViewProps) {
         <View style={styles.segment}>
           <Segment
             icon="video-camera-front"
-            label="Video Pitches"
-            active={tab === 'pitches'}
-            onPress={() => setTab('pitches')}
+            label="My Work"
+            active={tab === 'work'}
+            onPress={() => setTab('work')}
           />
           <Segment
             icon="folder-special"
-            label="Case Studies"
-            active={tab === 'cases'}
-            onPress={() => setTab('cases')}
+            label="Projects"
+            active={tab === 'projects'}
+            onPress={() => setTab('projects')}
           />
           <Segment
             icon="reviews"
@@ -213,9 +201,9 @@ export function ProfileView(p: ProfileViewProps) {
           />
         </View>
 
-        {tab === 'pitches' && (
+        {tab === 'work' && (
           <View style={styles.grid}>
-            {p.pitches.map((pitch) => (
+            {p.works.map((pitch) => (
               <View key={pitch.title} style={[styles.pitch, shadow('md')]}>
                 <Cover source={pitch.image} />
                 <Scrim
@@ -246,15 +234,15 @@ export function ProfileView(p: ProfileViewProps) {
               </View>
             ))}
             <Pressable
-              onPress={p.pitchTile.onPress}
+              onPress={p.workTile.onPress}
               accessibilityRole="button"
               style={[styles.pitch, styles.pitchCta]}
             >
               <View style={[styles.pitchCtaIcon, shadow('md')]}>
-                <Icon name={p.pitchTile.icon} size={20} color={c.secondary} />
+                <Icon name={p.workTile.icon} size={20} color={c.secondary} />
               </View>
               <Text style={[type.labelSm, { color: c.onSurface, textAlign: 'center' }]}>
-                {p.pitchTile.title}
+                {p.workTile.title}
               </Text>
               <Text
                 style={[
@@ -262,15 +250,15 @@ export function ProfileView(p: ProfileViewProps) {
                   { color: c.onSurfaceVariant, fontSize: 10, marginTop: 4, textAlign: 'center' },
                 ]}
               >
-                {p.pitchTile.subtitle}
+                {p.workTile.subtitle}
               </Text>
             </Pressable>
           </View>
         )}
 
-        {tab === 'cases' &&
-          (p.caseStudies.length ? (
-            p.caseStudies.map((cs) => (
+        {tab === 'projects' &&
+          (p.projects.length ? (
+            p.projects.map((cs) => (
               <Glass
                 key={cs.title}
                 tint={alpha(c.surfaceContainer, 0.7)}
@@ -324,14 +312,14 @@ export function ProfileView(p: ProfileViewProps) {
                 <View style={styles.panelHead}>
                   <Text style={[type.labelSm, { color: c.primary, flexShrink: 1 }]}>{cs.meta}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={[type.labelSm, { color: c.secondary }]}>View Case</Text>
+                    <Text style={[type.labelSm, { color: c.secondary }]}>See project</Text>
                     <Icon name="arrow-forward" size={14} color={c.secondary} />
                   </View>
                 </View>
               </Glass>
             ))
           ) : (
-            <Empty icon="folder-special" text="No case studies yet." />
+            <Empty icon="folder-special" text="No projects yet." />
           ))}
 
         {tab === 'reviews' && (
@@ -372,20 +360,7 @@ export function ProfileView(p: ProfileViewProps) {
                 </Glass>
               ))
             ) : (
-              <Empty icon="reviews" text="Reviews show up after someone is hired." />
-            )}
-            {p.certified && (
-              <View style={[styles.credential, shadow('md')]}>
-                <Icon name="verified-user" size={24} color={c.secondary} />
-                <View style={{ flexShrink: 1 }}>
-                  <Text style={[type.labelMd, { color: c.onSurface }]}>
-                    JobTok Certified Talent
-                  </Text>
-                  <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>
-                    Government ID &amp; Past Employer References Verified
-                  </Text>
-                </View>
-              </View>
+              <Empty icon="reviews" text="Reviews show up after people work together." />
             )}
           </>
         )}
@@ -491,12 +466,6 @@ const styles = StyleSheet.create({
     backgroundColor: c.surfaceContainerHigh,
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
-  pro: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radii.pill,
-    backgroundColor: alpha(c.secondary, 0.1),
-  },
   headline: {
     color: c.onSurfaceVariant,
     textAlign: 'center',
@@ -610,14 +579,6 @@ const styles = StyleSheet.create({
     backgroundColor: c.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  credential: {
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: alpha(c.surfaceContainerHigh, 0.8),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
   },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 20 },
 });

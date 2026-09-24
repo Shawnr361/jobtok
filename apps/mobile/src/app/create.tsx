@@ -12,43 +12,70 @@ import {
   Scrim,
   type IconName,
 } from '../components/primitives';
-import { images } from '../features/demo/data';
+import { CATEGORIES, images } from '../features/demo/data';
 import { alpha, c, glow, gradients, radii, shadow, type } from '../theme';
 
-type Mode = 'pitch' | 'hire';
+/** Show your work: a video of real work. Team needed: find skilled people for a project. */
+type Mode = 'work' | 'team';
 
-const CATEGORIES = [
-  'Construction & Real Estate',
-  'Tech & Product Design',
-  'Culinary & Hospitality',
-  'Logistics & Heavy Fleet',
-  'Healthcare & Nursing',
+const STYLES = [
+  'Before & after',
+  'Step by step',
+  'Problem & fix',
+  'Day in the life',
+  'Time-lapse',
+  'Tips',
 ];
-const TAGS = ['On-site', 'Immediate start', 'Full-time', 'Verified Portfolio', 'Relocation OK'];
+const TEAM_TERMS = [
+  'One day',
+  'A few days',
+  'Weekend',
+  'Ongoing',
+  'Tools provided',
+  'Meals provided',
+];
 const MAX_DESC = 300;
 
 const comingSoon = (what: string) =>
   Alert.alert('Coming soon', `${what} is coming soon. Nothing has been posted yet.`);
 
-const money = (n: number) => `$${n.toLocaleString('en-US')}`;
+const naira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
 
-/** Record a pitch or a hiring post (design: jobtok_post_a_video_job). UI only for now. */
+const GUIDE: Record<Mode, { title: string; text: string }> = {
+  work: {
+    title: 'Story guide',
+    text: 'Start with the before. Show the process and the tricky part, then end with the result: “Watch the final result.”',
+  },
+  team: {
+    title: 'Say what you need',
+    text: '“I’m catering a wedding for 300 guests on Saturday. I need 2 assistant chefs and 3 kitchen helpers. Here’s the kitchen...”',
+  },
+};
+
+/** Post a video of your work or a team request (design: jobtok_post_a_video_job). UI only for now. */
 export default function CreateScreen() {
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<Mode>('pitch');
+  const [mode, setMode] = useState<Mode>('work');
   const [prompter, setPrompter] = useState(true);
-  const [title, setTitle] = useState('Site Supervisor & Finishes Lead');
-  const [category, setCategory] = useState(CATEGORIES[0]!);
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [pickCategory, setPickCategory] = useState(false);
-  const [location, setLocation] = useState('Lekki Phase 1, Lagos, Nigeria');
-  const [salary, setSalary] = useState(1800);
-  const [tags, setTags] = useState<string[]>(['On-site', 'Immediate start', 'Full-time']);
-  const [desc, setDesc] = useState(
-    'We need an experienced site supervisor for our ongoing high-spec residential build in Lekki. Candidate must demonstrate 4+ years managing subcontractors and carpentry finishing.',
-  );
+  const [location, setLocation] = useState('');
+  const [pay, setPay] = useState(15000);
+  const [videoStyles, setVideoStyles] = useState<string[]>(['Before & after']);
+  const [terms, setTerms] = useState<string[]>([]);
+  const [roles, setRoles] = useState('');
+  const [tools, setTools] = useState('');
+  const [tip, setTip] = useState('');
+  const [desc, setDesc] = useState('');
 
-  const toggleTag = (t: string) =>
-    setTags((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]));
+  const team = mode === 'team';
+  const chips = team ? TEAM_TERMS : STYLES;
+  const selected = team ? terms : videoStyles;
+  const toggleChip = (t: string) =>
+    (team ? setTerms : setVideoStyles)((cur) =>
+      cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t],
+    );
 
   return (
     <View style={styles.screen}>
@@ -66,7 +93,7 @@ export default function CreateScreen() {
             <Text style={[type.labelSm, styles.studioText]}>Creator Studio</Text>
           </View>
           <Glass tint={alpha(c.surfaceContainerHigh, 0.8)} style={styles.toggle}>
-            {(['pitch', 'hire'] as const).map((m) => (
+            {(['work', 'team'] as const).map((m) => (
               <Pressable
                 key={m}
                 onPress={() => setMode(m)}
@@ -80,7 +107,7 @@ export default function CreateScreen() {
                     { color: mode === m ? c.onPrimaryContainer : c.onSurfaceVariant },
                   ]}
                 >
-                  {m === 'pitch' ? 'Seeker Pitch' : 'Hiring Post'}
+                  {m === 'work' ? 'Show your work' : 'Team needed'}
                 </Text>
               </Pressable>
             ))}
@@ -111,7 +138,7 @@ export default function CreateScreen() {
               <Pressable onPress={() => setPrompter((v) => !v)} accessibilityRole="button">
                 <Glass tint={alpha(c.surfaceContainerHigh, 0.8)} style={styles.recPill}>
                   <Icon name="notes" size={14} color={c.secondary} />
-                  <Text style={[type.labelSm, { color: c.onSurface }]}>Prompter Script</Text>
+                  <Text style={[type.labelSm, { color: c.onSurface }]}>{GUIDE[mode].title}</Text>
                 </Glass>
               </Pressable>
             </View>
@@ -125,15 +152,11 @@ export default function CreateScreen() {
                 <View style={styles.prompterHead}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Icon name="auto-awesome" size={12} color={c.secondary} />
-                    <Text style={[type.labelSm, { color: c.secondary }]}>
-                      {mode === 'pitch'
-                        ? 'Suggested 45s Pitch Script'
-                        : 'Suggested 45s Hiring Script'}
-                    </Text>
+                    <Text style={[type.labelSm, { color: c.secondary }]}>{GUIDE[mode].title}</Text>
                   </View>
                   <Pressable
                     onPress={() => setPrompter(false)}
-                    accessibilityLabel="Close prompter"
+                    accessibilityLabel="Close guide"
                     hitSlop={8}
                   >
                     <Icon name="close" size={14} color={c.onSurfaceVariant} />
@@ -143,16 +166,14 @@ export default function CreateScreen() {
                   style={[type.bodySm, { color: c.onSurface, lineHeight: 20 }]}
                   numberOfLines={3}
                 >
-                  {mode === 'pitch'
-                    ? '“Hi, I’m Joshua! Over the last 5 years in Lagos, I’ve led custom commercial woodworking and finished high-end bespoke fitouts on time and under budget. Here are 3 projects I personally delivered...”'
-                    : '“We’re hiring a site supervisor in Lekki! You’ll lead subcontractors and carpentry finishing on a high-spec residential build. Here’s the site and the team you’d join...”'}
+                  {GUIDE[mode].text}
                 </Text>
               </Glass>
             )}
 
             <View style={styles.reticle} pointerEvents="none">
               <Icon name="crop-free" size={48} color={c.primary} />
-              <Text style={[type.labelMd, styles.tagline]}>SHOW ME WHAT YOU CAN DO.</Text>
+              <Text style={[type.labelMd, styles.tagline]}>SHOW US WHAT YOU CAN DO.</Text>
             </View>
 
             <View style={styles.tools}>
@@ -204,14 +225,12 @@ export default function CreateScreen() {
             <View style={styles.formHead}>
               <View style={{ flexShrink: 1 }}>
                 <Text style={[type.headlineSm, { color: c.onSurface }]}>
-                  Job &amp; Skill Metadata
+                  {team ? 'Your team request' : 'Video details'}
                 </Text>
                 <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>
-                  Add a few details so{' '}
-                  {mode === 'pitch'
-                    ? 'employers can find your pitch'
-                    : 'the right people can find your job'}
-                  .
+                  {team
+                    ? 'Tell skilled people what the job is and who you need.'
+                    : 'A few details help the right people find your video.'}
                 </Text>
               </View>
               <View style={styles.step}>
@@ -221,27 +240,29 @@ export default function CreateScreen() {
 
             <Card>
               <Label
-                text="Job Title or Specialty Role"
+                text={team ? 'What’s the project?' : 'What are you showing?'}
                 right={<Text style={[type.labelSm, { color: c.secondary }]}>Required</Text>}
               />
-              <InputRow icon="work" iconColor={c.primary}>
+              <InputRow icon={team ? 'groups' : 'videocam'} iconColor={c.primary}>
                 <TextInput
                   value={title}
                   onChangeText={setTitle}
-                  placeholder="Like Full Stack Developer or Head Chef"
+                  placeholder={
+                    team ? 'Like: Wedding for 300 guests' : 'Like: Watch me build this custom gate'
+                  }
                   placeholderTextColor={c.outline}
                   style={[type.bodyMd, styles.input]}
-                  accessibilityLabel="Job title or specialty role"
+                  accessibilityLabel={team ? 'Project' : 'Video title'}
                 />
               </InputRow>
             </Card>
 
             <Card>
-              <Label text="Industry Category" />
+              <Label text="Category" />
               <Pressable
                 onPress={() => setPickCategory((v) => !v)}
                 accessibilityRole="button"
-                accessibilityLabel={`Industry category: ${category}`}
+                accessibilityLabel={`Category: ${category}`}
               >
                 <InputRow icon="category" iconColor={c.secondary}>
                   <Text style={[type.bodyMd, { color: c.onSurface, flex: 1 }]}>{category}</Text>
@@ -274,19 +295,19 @@ export default function CreateScreen() {
 
             <Card>
               <Label
-                text="Job / Candidate Location"
+                text={team ? 'Where is it?' : 'Your city'}
                 right={
                   <Pressable
                     onPress={() =>
                       Alert.alert(
                         'Location',
-                        'Finding your location automatically is coming soon. For now, just type it in.',
+                        'Finding your city automatically is coming soon. For now, just type it in.',
                       )
                     }
                     style={styles.gps}
                   >
                     <Icon name="my-location" size={14} color={c.secondary} />
-                    <Text style={[type.labelSm, { color: c.secondary }]}>GPS Auto</Text>
+                    <Text style={[type.labelSm, { color: c.secondary }]}>Use my city</Text>
                   </Pressable>
                 }
               />
@@ -294,54 +315,101 @@ export default function CreateScreen() {
                 <TextInput
                   value={location}
                   onChangeText={setLocation}
-                  placeholder="City, State or Remote"
+                  placeholder="Like Kaduna or Lagos"
                   placeholderTextColor={c.outline}
                   style={[type.bodyMd, styles.input]}
-                  accessibilityLabel="Location"
+                  accessibilityLabel="City"
                 />
               </InputRow>
+              <Text style={[type.bodySm, { color: c.outline }]}>
+                Only your city is shown, never your address.
+              </Text>
             </Card>
 
-            <Card>
-              <Label
-                text={mode === 'pitch' ? 'Expected Monthly Compensation' : 'Monthly Pay Range'}
-                right={
-                  <Text
-                    style={[type.labelMd, { color: c.primary }]}
-                  >{`${money(Math.max(500, salary - 600))} - ${money(salary)} / mo`}</Text>
-                }
-              />
-              <View style={styles.sliderBox}>
-                <Slider
-                  minimumValue={500}
-                  maximumValue={5000}
-                  step={100}
-                  value={salary}
-                  onValueChange={setSalary}
-                  minimumTrackTintColor={c.primary}
-                  maximumTrackTintColor={c.surfaceContainerLowest}
-                  thumbTintColor={c.primary}
-                  accessibilityLabel="Monthly compensation"
+            {team ? (
+              <>
+                <Card>
+                  <Label text="Who do you need?" />
+                  <InputRow icon="group-add" iconColor={c.primary}>
+                    <TextInput
+                      value={roles}
+                      onChangeText={setRoles}
+                      placeholder="Like: 2 assistant chefs, 3 kitchen helpers"
+                      placeholderTextColor={c.outline}
+                      style={[type.bodyMd, styles.input]}
+                      accessibilityLabel="Who do you need"
+                    />
+                  </InputRow>
+                </Card>
+                <Card>
+                  <Label
+                    text="Pay per person"
+                    right={
+                      <Text
+                        style={[type.labelMd, { color: c.primary }]}
+                      >{`${naira(pay)} a day`}</Text>
+                    }
+                  />
+                  <View style={styles.sliderBox}>
+                    <Slider
+                      minimumValue={5000}
+                      maximumValue={100000}
+                      step={1000}
+                      value={pay}
+                      onValueChange={setPay}
+                      minimumTrackTintColor={c.primary}
+                      maximumTrackTintColor={c.surfaceContainerLowest}
+                      thumbTintColor={c.primary}
+                      accessibilityLabel="Pay per person per day"
+                    />
+                    <View style={styles.sliderScale}>
+                      {['₦5k', '₦50k', '₦100k+'].map((s) => (
+                        <Text key={s} style={[type.labelSm, { color: c.outline }]}>
+                          {s}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                </Card>
+              </>
+            ) : (
+              <Card>
+                <Label
+                  text="Learn this"
+                  right={<Text style={[type.labelSm, { color: c.outline }]}>Optional</Text>}
                 />
-                <View style={styles.sliderScale}>
-                  {['Entry ($500)', 'Mid ($2,500)', 'Senior ($5,000+)'].map((s) => (
-                    <Text key={s} style={[type.labelSm, { color: c.outline }]}>
-                      {s}
-                    </Text>
-                  ))}
-                </View>
-              </View>
-            </Card>
+                <InputRow icon="handyman" iconColor={c.secondary}>
+                  <TextInput
+                    value={tools}
+                    onChangeText={setTools}
+                    placeholder="Tools and materials you used"
+                    placeholderTextColor={c.outline}
+                    style={[type.bodyMd, styles.input]}
+                    accessibilityLabel="Tools and materials"
+                  />
+                </InputRow>
+                <InputRow icon="tips-and-updates" iconColor={c.primary}>
+                  <TextInput
+                    value={tip}
+                    onChangeText={setTip}
+                    placeholder="Your best tip for someone learning this"
+                    placeholderTextColor={c.outline}
+                    style={[type.bodyMd, styles.input]}
+                    accessibilityLabel="Your best tip"
+                  />
+                </InputRow>
+              </Card>
+            )}
 
             <Card>
-              <Label text="Employment Badges & Terms" />
+              <Label text={team ? 'How long, and what’s included' : 'Video style'} />
               <View style={styles.tags}>
-                {TAGS.map((t) => {
-                  const on = tags.includes(t);
+                {chips.map((t) => {
+                  const on = selected.includes(t);
                   return (
                     <Pressable
                       key={t}
-                      onPress={() => toggleTag(t)}
+                      onPress={() => toggleChip(t)}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: on }}
                       style={[
@@ -370,11 +438,7 @@ export default function CreateScreen() {
 
             <Card>
               <Label
-                text={
-                  mode === 'pitch'
-                    ? 'Pitch Overview & Deliverables'
-                    : 'Role Overview & Requirements'
-                }
+                text={team ? 'Anything else they should know?' : 'Tell the story'}
                 right={
                   <Text
                     style={[type.labelSm, { color: c.outline }]}
@@ -387,7 +451,11 @@ export default function CreateScreen() {
                 multiline
                 numberOfLines={3}
                 maxLength={MAX_DESC}
-                placeholder="Tell people what you've worked on, the tools you use, or what you need..."
+                placeholder={
+                  team
+                    ? 'Dates, times, what to bring...'
+                    : 'What was the job, how did you do it, and how did it turn out?'
+                }
                 placeholderTextColor={c.outline}
                 style={[type.bodyMd, styles.textarea]}
                 accessibilityLabel="Description"
@@ -397,25 +465,25 @@ export default function CreateScreen() {
             <View style={styles.safe}>
               <Icon name="verified-user" size={24} color={c.secondary} />
               <View style={{ flexShrink: 1 }}>
-                <Text style={[type.labelMd, { color: c.onSurface }]}>
-                  Verified JobTok Safe Network
-                </Text>
+                <Text style={[type.labelMd, { color: c.onSurface }]}>Keep it real</Text>
                 <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>
-                  Every video will be checked to help protect you from fake job offers.
+                  {team
+                    ? 'Describe the job honestly and pay what you promise.'
+                    : 'Only post work you did yourself.'}
                 </Text>
               </View>
             </View>
 
             <View style={{ gap: 8, paddingTop: 8 }}>
               <Pressable
-                onPress={() => comingSoon('Publishing')}
+                onPress={() => comingSoon('Posting')}
                 accessibilityRole="button"
                 style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}
               >
                 <Gradient colors={gradients.cta} style={[styles.publish, glow('primary')]}>
                   <Icon name="rocket-launch" size={20} color={c.white} />
                   <Text style={[type.labelLg, { color: c.white }]}>
-                    {mode === 'pitch' ? 'Publish Pitch to Feed' : 'Publish Job to Feed'}
+                    {team ? 'Post team request' : 'Post video'}
                   </Text>
                   <Icon name="arrow-forward" size={18} color={c.white} />
                 </Gradient>
@@ -426,13 +494,13 @@ export default function CreateScreen() {
                 style={styles.draft}
               >
                 <Icon name="bookmark-border" size={18} color={c.onSurfaceVariant} />
-                <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>Save Video Draft</Text>
+                <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>Save draft</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </ScrollView>
-      <ScreenHeader title="Create Video Job" />
+      <ScreenHeader title="Create" />
     </View>
   );
 }

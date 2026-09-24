@@ -12,12 +12,12 @@ const EMPTY: Record<Section, { icon: IconName; title: string; body: string }> = 
   messages: {
     icon: 'chat-bubble',
     title: 'No conversations yet',
-    body: 'Your chats show up here once you apply for a job or an employer reaches out to you. No random DMs, ever.',
+    body: 'When you message someone about their work, or they reach out about yours, your chats show up here.',
   },
   notifications: {
     icon: 'notifications',
     title: 'You’re all caught up',
-    body: 'Updates on your applications, new followers and messages will land here.',
+    body: 'New followers, likes, comments and messages will land here.',
   },
 };
 

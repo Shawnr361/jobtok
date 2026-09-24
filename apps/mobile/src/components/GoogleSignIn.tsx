@@ -1,3 +1,4 @@
+import { AntDesign } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -5,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { authApi, errorMessage, useAuth } from '../lib/auth/AuthProvider';
 import { DEV_GOOGLE, GOOGLE_CLIENT_IDS, GOOGLE_CONFIGURED } from '../lib/config';
-import { Button, ErrorText, Field, Notice } from './ui';
+import { Button, ErrorText, Field, Notice, Tile } from './ui';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -15,9 +16,12 @@ WebBrowser.maybeCompleteAuthSession();
  * - a clearly labelled DEVELOPMENT MOCK when EXPO_PUBLIC_AUTH_DEV_GOOGLE=true;
  * - otherwise a disabled button explaining it is not configured.
  */
-export function GoogleSignIn() {
-  if (GOOGLE_CONFIGURED) return <RealGoogleButton />;
-  if (DEV_GOOGLE) return <DevGoogleMock />;
+export function GoogleSignIn({ variant = 'button' }: { variant?: 'button' | 'tile' }) {
+  if (GOOGLE_CONFIGURED) return <RealGoogleButton variant={variant} />;
+  if (DEV_GOOGLE) return <DevGoogleMock variant={variant} />;
+  if (variant === 'tile') {
+    return <Tile label="Google (soon)" icon={googleIcon} onPress={() => {}} disabled />;
+  }
   return (
     <View style={{ gap: 8 }}>
       <Button label="Continue with Google" variant="secondary" onPress={() => {}} disabled />
@@ -25,6 +29,8 @@ export function GoogleSignIn() {
     </View>
   );
 }
+
+const googleIcon = <AntDesign name="google" size={22} color="#FFFFFF" />;
 
 function useFinishGoogle() {
   const router = useRouter();
@@ -53,7 +59,7 @@ function useFinishGoogle() {
   return { finish, error, setError, busy };
 }
 
-function RealGoogleButton() {
+function RealGoogleButton({ variant }: { variant: 'button' | 'tile' }) {
   const { finish, error, setError, busy } = useFinishGoogle();
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     webClientId: GOOGLE_CLIENT_IDS.web,
@@ -75,6 +81,20 @@ function RealGoogleButton() {
     }
   }, [response, finish, setError]);
 
+  if (variant === 'tile') {
+    return (
+      <View style={{ flex: 1, gap: 8 }}>
+        <Tile
+          label="Google"
+          icon={googleIcon}
+          onPress={() => void promptAsync()}
+          disabled={!request}
+          loading={busy}
+        />
+        <ErrorText message={error} />
+      </View>
+    );
+  }
   return (
     <View style={{ gap: 8 }}>
       <Button
@@ -89,11 +109,16 @@ function RealGoogleButton() {
   );
 }
 
-function DevGoogleMock() {
+function DevGoogleMock({ variant }: { variant: 'button' | 'tile' }) {
   const { finish, error, busy } = useFinishGoogle();
   const [email, setEmail] = useState('');
+  // As a tile, the test form opens on its own full-width row when tapped.
+  const [open, setOpen] = useState(variant === 'button');
+  if (!open) {
+    return <Tile label="Google (test)" icon={googleIcon} onPress={() => setOpen(true)} />;
+  }
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: 8, flexBasis: '100%' }}>
       <Notice>
         Test mode only. This isn’t real Google sign-in. It signs you in with the email below.
       </Notice>

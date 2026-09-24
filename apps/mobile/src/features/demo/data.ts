@@ -1,12 +1,12 @@
-// SAMPLE DATA — UI preview only.
-// The feed, explore, talent profile and create-job screens are built ahead of their backends
-// (profiles, showcases and jobs arrive in later Phase 1 steps). Everything here comes from the
-// Stitch design suite and is replaced by API data when those steps land. Nothing is sent anywhere.
+// SAMPLE DATA: UI preview only.
+// The feed, explore, creator profile and create screens are built ahead of their backends
+// (profiles, videos and projects arrive in later Phase 1 steps). Everything here is replaced by
+// API data when those steps land. Nothing is sent anywhere.
 import type { ImageSourcePropType } from 'react-native';
 import type { IconName } from '../../components/primitives';
 
 export const DEMO_NOTICE =
-  'These are sample profiles for now. Real ones arrive when profiles and video uploads go live.';
+  'These are sample creators for now. Real ones arrive when video uploads go live.';
 
 export const images = {
   me: require('../../../assets/design/avatar-me.jpg'),
@@ -32,7 +32,7 @@ export const images = {
     avatar: require('../../../assets/design/tunde-avatar.jpg'),
     cover: require('../../../assets/design/tunde-cover.jpg'),
   },
-  pitches: {
+  works: {
     mockups: require('../../../assets/design/amina-pitch-mockups.jpg'),
     fintech: require('../../../assets/design/amina-fintech-figma.jpg'),
     designSystem: require('../../../assets/design/amina-design-system.jpg'),
@@ -40,6 +40,35 @@ export const images = {
     podcast: require('../../../assets/design/amina-podcast.jpg'),
   },
 } satisfies Record<string, unknown>;
+
+/** Content categories: practical skills and creativity. */
+export const CATEGORIES = [
+  'Build & Make',
+  'Skilled Trades',
+  'Food',
+  'Fashion',
+  'Beauty',
+  'Technology',
+  'Engineering',
+  'Creative',
+  'Art',
+  'Photography',
+  'Videography',
+  'Agriculture',
+  'Automotive',
+  'Electronics',
+  'Home & Construction',
+  'Crafts',
+  'Health & Care',
+  'Business',
+  'Education',
+  'Science',
+  'Lifestyle Skills',
+  'African Culture',
+] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export const exploreFilters = ['All', ...CATEGORIES] as const;
 
 export type Tone = 'primary' | 'secondary' | 'tertiary' | 'neutral';
 
@@ -49,11 +78,20 @@ export interface Skill {
   icon?: IconName;
 }
 
-export interface Pitch {
+/** A video on a creator's profile. */
+export interface Work {
   title: string;
   duration: string;
   views: string;
   image: ImageSourcePropType;
+}
+
+/** Optional "Learn this" breakdown under a video. Keep it short. */
+export interface Learn {
+  tools: string[];
+  materials?: string[];
+  steps?: string[];
+  tips: string[];
 }
 
 export interface Talent {
@@ -63,39 +101,39 @@ export interface Talent {
   role: string;
   roleTone: 'primary' | 'secondary';
   verifiedTone: 'primary' | 'secondary';
+  /** City level only. Never a precise address. */
   location: string;
+  city: string;
+  category: Category;
   bio: string;
   avatar: ImageSourcePropType;
   cover: ImageSourcePropType;
-  /** Explore card media label (e.g. "Video Resume") and its dot colour. */
+  /** Explore card media label (e.g. "Build video") and its dot colour. */
   mediaLabel: string;
   mediaDot: string;
   badge: { label: string; color: string };
   skills: Skill[];
-  cta: { label: string; icon: IconName; tone: 'primary' | 'secondary' };
-  /** Explore filter tags. */
-  tags: string[];
-  // Feed overlay
+  // Feed video
   feed: {
-    kind: string;
-    kindIcon: IconName;
-    rate?: string;
-    pitch: string;
-    availability: string;
+    icon: IconName;
+    /** Says what is happening in the video. */
+    title: string;
+    caption: string;
     sound: string;
-    match: number;
     likes: string;
     comments: string;
     saves: string;
     shares: string;
+    learn?: Learn;
   };
   // Profile
   headline: string;
-  status: string;
+  /** Optional availability, shown quietly on the profile. */
+  status?: string;
   stats: { followers: string; following: string; views: string; rating: string; reviews: number };
-  verifiedSkills: Skill[];
-  pitches: Pitch[];
-  caseStudies: {
+  topSkills: Skill[];
+  works: Work[];
+  projects: {
     kicker: string;
     title: string;
     tag: string;
@@ -107,8 +145,8 @@ export interface Talent {
 }
 
 const common = {
-  pitches: [] as Pitch[],
-  caseStudies: [] as Talent['caseStudies'],
+  works: [] as Work[],
+  projects: [] as Talent['projects'],
   reviews: [] as Talent['reviews'],
 };
 
@@ -122,38 +160,45 @@ export const talents: Talent[] = [
     roleTone: 'secondary',
     verifiedTone: 'primary',
     location: 'Lagos, Nigeria',
-    bio: 'Carpentry & woodwork, 5+ years experience. I build bespoke dining sets, renovate luxury cabinetry, and fabricate custom studio furniture.',
+    city: 'Lagos',
+    category: 'Build & Make',
+    bio: 'Carpenter in Lagos. I make dining sets, cabinets and studio furniture by hand, and I film the whole process.',
     avatar: images.josh.avatar,
     cover: images.josh.cover,
-    mediaLabel: 'Workshop Reel',
+    mediaLabel: 'Build video',
     mediaDot: '#4cd7f6',
-    badge: { label: '5+ yrs exp', color: '#4cd7f6' },
+    badge: { label: 'Build & Make', color: '#4cd7f6' },
     skills: [
       { label: 'Carpentry', tone: 'neutral' },
       { label: 'Cabinetry', tone: 'neutral' },
       { label: 'Joinery', tone: 'primary' },
       { label: 'Furniture', tone: 'secondary' },
     ],
-    cta: { label: 'View Profile', icon: 'arrow-forward', tone: 'primary' },
-    tags: ['For You', 'Skilled Trade', 'Freelance'],
     feed: {
-      kind: 'Skilled Worker',
-      kindIcon: 'handyman',
-      rate: '$35/hr',
-      pitch:
-        "Carpentry & woodwork, 5+ years experience. I build bespoke dining sets, renovate luxury cabinetry, and fabricate custom studio furniture. Let's build together! 🔨✨",
-      availability: 'Available for Hire',
-      sound: 'Original Sound • Workshop ASMR & Acoustic Grooves',
-      match: 98,
+      icon: 'handyman',
+      title: 'Watch me turn raw iroko into a dining table',
+      caption: 'Day 3 of 5: planing, joinery and the first dry fit. Final result on Friday 🔨',
+      sound: 'Original sound • Workshop sounds',
       likes: '12.4K',
       comments: '842',
       saves: '1.2K',
       shares: '3.6K',
+      learn: {
+        tools: ['Hand plane', 'Chisels', 'Marking gauge', 'Clamps'],
+        materials: ['Iroko boards', 'Wood glue', 'Danish oil'],
+        steps: [
+          'Plane every board flat and square.',
+          'Mark and cut the mortise and tenon joints.',
+          'Dry fit everything before any glue.',
+          'Glue up, clamp and leave it overnight.',
+        ],
+        tips: ['Let new wood rest in your workshop for a week so it settles before you cut.'],
+      },
     },
-    headline: 'Master carpenter | Bespoke furniture, cabinetry & studio fit-outs across Lagos.',
-    status: 'Available for Hire',
+    headline: 'Carpenter | Dining sets, cabinets and studio furniture, built by hand in Lagos.',
+    status: 'Taking furniture projects',
     stats: { followers: '21.8K', following: '96', views: '240K', rating: '4.8', reviews: 31 },
-    verifiedSkills: [
+    topSkills: [
       { label: 'Carpentry', tone: 'secondary', icon: 'handyman' },
       { label: 'Cabinetry', tone: 'primary', icon: 'widgets' },
       { label: 'Finishing', tone: 'neutral', icon: 'auto-fix-high' },
@@ -168,39 +213,43 @@ export const talents: Talent[] = [
     roleTone: 'primary',
     verifiedTone: 'primary',
     location: 'Lagos, Nigeria',
-    bio: 'Creativity meets results. 5+ years experience in branding, mobile UI/UX, and viral social media design. Ready for hire!',
+    city: 'Lagos',
+    category: 'Creative',
+    bio: 'Designer in Lagos. I show how brands and apps come together, from the first sketch to launch day.',
     avatar: images.emeka.avatar,
     cover: images.emeka.cover,
-    mediaLabel: 'Video Resume',
+    mediaLabel: 'Process video',
     mediaDot: '#4cd7f6',
-    badge: { label: '5+ yrs exp', color: '#4cd7f6' },
+    badge: { label: 'Creative', color: '#4cd7f6' },
     skills: [
-      { label: 'Design', tone: 'neutral' },
-      { label: 'Photoshop', tone: 'neutral' },
+      { label: 'Branding', tone: 'neutral' },
       { label: 'Illustrator', tone: 'neutral' },
       { label: 'UI/UX', tone: 'primary' },
       { label: 'Figma', tone: 'secondary' },
     ],
-    cta: { label: 'View Profile', icon: 'arrow-forward', tone: 'primary' },
-    tags: ['For You', 'Tech & Design', 'Full-time', 'Remote'],
     feed: {
-      kind: 'Designer',
-      kindIcon: 'design-services',
-      rate: '$28/hr',
-      pitch:
-        'Creativity meets results. 5+ years in branding, mobile UI/UX and viral social design. Here are the three launches I am proudest of.',
-      availability: 'Open to Remote',
-      sound: 'Original Sound • Studio Lo-fi Session',
-      match: 91,
+      icon: 'design-services',
+      title: 'How I designed a full brand in 3 days',
+      caption: 'Logo, colours and packaging for a Lagos juice brand. Sketches to final files.',
+      sound: 'Original sound • Studio lo-fi session',
       likes: '8.9K',
       comments: '512',
       saves: '944',
       shares: '1.8K',
+      learn: {
+        tools: ['Sketchbook', 'Illustrator', 'Figma'],
+        steps: [
+          'Sketch 20 rough ideas in 20 minutes.',
+          'Pick three and draw them properly.',
+          'Test the favourite in black and white, then add colour.',
+        ],
+        tips: ['If a logo works in black and white, it works everywhere.'],
+      },
     },
-    headline: 'Graphic & product designer | Brand systems, mobile UI and social campaigns.',
-    status: 'Open to Offers (Remote)',
+    headline: 'Designer | Brands, mobile apps and social campaigns.',
+    status: 'Open to collaborations',
     stats: { followers: '18.3K', following: '210', views: '97K', rating: '4.9', reviews: 22 },
-    verifiedSkills: [
+    topSkills: [
       { label: 'UI/UX Design', tone: 'primary', icon: 'design-services' },
       { label: 'Branding', tone: 'secondary', icon: 'auto-awesome' },
       { label: 'Figma', tone: 'neutral', icon: 'draw' },
@@ -215,40 +264,46 @@ export const talents: Talent[] = [
     roleTone: 'secondary',
     verifiedTone: 'secondary',
     location: 'Port Harcourt, Nigeria',
-    bio: 'Caring, highly professional and ready to help. 3+ years experience in patient care, rehabilitation, and assisted daily living support.',
+    city: 'Port Harcourt',
+    category: 'Health & Care',
+    bio: 'Healthcare assistant in Port Harcourt. I share practical care tips for families and carers.',
     avatar: images.precious.avatar,
     cover: images.precious.cover,
-    mediaLabel: 'Care Video Pitch',
+    mediaLabel: 'How-to video',
     mediaDot: '#adc6ff',
-    badge: { label: 'Available Now', color: '#adc6ff' },
+    badge: { label: 'Health & Care', color: '#adc6ff' },
     skills: [
       { label: 'Patient Care', tone: 'neutral' },
       { label: 'First Aid', tone: 'neutral' },
-      { label: 'CPR Certified', tone: 'neutral' },
+      { label: 'CPR', tone: 'neutral' },
       { label: 'Senior Care', tone: 'tertiary' },
     ],
-    cta: { label: 'Contact / Apply', icon: 'chat', tone: 'secondary' },
-    tags: ['For You', 'Full-time'],
     feed: {
-      kind: 'Healthcare',
-      kindIcon: 'favorite',
-      pitch:
-        'Caring, highly professional and ready to help. 3+ years in patient care, rehabilitation and assisted daily living support.',
-      availability: 'Available Now',
-      sound: 'Original Sound • Morning Rounds',
-      match: 87,
+      icon: 'favorite',
+      title: 'How to help someone stand up safely',
+      caption:
+        'Two simple moves that protect their back and yours. Save this if you care for someone at home.',
+      sound: 'Original sound • Morning rounds',
       likes: '6.1K',
       comments: '301',
       saves: '712',
       shares: '980',
+      learn: {
+        tools: ['A sturdy chair', 'Gait belt (optional)'],
+        steps: [
+          'Ask them to shuffle forward to the edge of the seat.',
+          'Feet flat and a little apart, nose over toes.',
+          'Count together and stand on three.',
+        ],
+        tips: ['Never pull on their arms. Support them at the hips instead.'],
+      },
     },
-    headline: 'Healthcare assistant | Patient care, rehabilitation and assisted living.',
-    status: 'Available Now',
+    headline: 'Healthcare assistant | Practical care tips for families and carers.',
     stats: { followers: '9.4K', following: '143', views: '61K', rating: '5.0', reviews: 17 },
-    verifiedSkills: [
+    topSkills: [
       { label: 'Patient Care', tone: 'secondary', icon: 'favorite' },
-      { label: 'CPR Certified', tone: 'primary', icon: 'verified-user' },
-      { label: 'First Aid', tone: 'neutral', icon: 'check-circle' },
+      { label: 'CPR', tone: 'primary', icon: 'monitor-heart' },
+      { label: 'First Aid', tone: 'neutral', icon: 'medical-services' },
     ],
   },
   {
@@ -259,95 +314,97 @@ export const talents: Talent[] = [
     roleTone: 'primary',
     verifiedTone: 'primary',
     location: 'Lagos, Nigeria',
-    bio: 'Specializing in TikTok/Reels pacing, YouTube documentaries, and color grading. Over 50M organic client views generated.',
+    city: 'Lagos',
+    category: 'Videography',
+    bio: 'Video editor and motion artist in Lagos. Reels, documentaries and colour grading, with every trick explained.',
     avatar: images.amina.avatar,
     cover: images.amina.cover,
-    mediaLabel: '2024 Reel',
+    mediaLabel: 'Before & after',
     mediaDot: '#d0bcff',
-    badge: { label: 'Freelance / FT', color: '#acedff' },
+    badge: { label: 'Videography', color: '#acedff' },
     skills: [
       { label: 'Premiere Pro', tone: 'neutral' },
       { label: 'After Effects', tone: 'neutral' },
       { label: 'Sound Design', tone: 'neutral' },
-      { label: 'Color Grading', tone: 'primary' },
+      { label: 'Colour Grading', tone: 'primary' },
     ],
-    cta: { label: 'View Reel', icon: 'visibility', tone: 'primary' },
-    tags: ['For You', 'Tech & Design', 'Freelance', 'Remote'],
     feed: {
-      kind: 'Creative Pro',
-      kindIcon: 'movie-edit',
-      rate: '$40/hr',
-      pitch:
-        "Reels pacing, documentary edits and colour grading. My clients' videos have 50M+ organic views. Here's my 60-second showreel.",
-      availability: 'Open to Offers',
-      sound: 'Original Sound • Showreel Mix 2024',
-      match: 94,
+      icon: 'movie-edit',
+      title: 'Before and after: grading a Lagos sunset',
+      caption: 'Flat footage in, golden hour out. Here’s exactly what I changed, step by step.',
+      sound: 'Original sound • Edit session mix',
       likes: '15.2K',
       comments: '1.1K',
       saves: '2.3K',
       shares: '4.4K',
+      learn: {
+        tools: ['DaVinci Resolve', 'Colour wheels', 'Scopes'],
+        steps: [
+          'Fix exposure first, then white balance.',
+          'Warm the highlights and keep skin tones natural.',
+          'Add a soft vignette to pull the eye in.',
+        ],
+        tips: ['Check skin tones on the vectorscope before you push the colours.'],
+      },
     },
-    headline:
-      'Creative Director & Product Designer | 5+ years crafting high-converting brand stories & kinetic digital interfaces.',
-    status: 'Open to Offers (Remote & Hybrid)',
+    headline: 'Video editor & motion artist | Reels, documentaries and colour grading.',
+    status: 'Open to collaborations',
     stats: { followers: '34.2K', following: '128', views: '185K', rating: '4.9', reviews: 48 },
-    verifiedSkills: [
-      { label: 'UI/UX Design', tone: 'primary', icon: 'design-services' },
-      { label: 'Branding', tone: 'secondary', icon: 'auto-awesome' },
-      { label: 'Figma', tone: 'neutral', icon: 'draw' },
+    topSkills: [
       { label: 'Video Editing', tone: 'secondary', icon: 'movie-edit' },
+      { label: 'Colour Grading', tone: 'primary', icon: 'palette' },
       { label: 'Motion Graphics', tone: 'primary', icon: 'animation' },
-      { label: 'Design Systems', tone: 'neutral', icon: 'widgets' },
+      { label: 'Sound Design', tone: 'neutral', icon: 'graphic-eq' },
+      { label: 'Storytelling', tone: 'neutral', icon: 'auto-stories' },
     ],
-    pitches: [
+    works: [
       {
-        title: '60s Elevator Pitch',
+        title: 'Grading a Lagos sunset',
         duration: '0:45',
         views: '14.5K',
-        image: images.pitches.mockups,
+        image: images.works.mockups,
       },
       {
-        title: 'Fintech App Redesign',
+        title: 'Launch film for a banking app',
         duration: '1:20',
         views: '28.1K',
-        image: images.pitches.fintech,
+        image: images.works.fintech,
       },
       {
-        title: 'Design System 2.0',
+        title: 'Building a motion toolkit',
         duration: '0:32',
         views: '12.4K',
-        image: images.pitches.designSystem,
+        image: images.works.designSystem,
       },
       {
-        title: 'Viral Ad Reel breakdown',
+        title: 'How I edit a reel that holds attention',
         duration: '0:58',
         views: '9.2K',
-        image: images.pitches.reel,
+        image: images.works.reel,
       },
       {
-        title: 'Why Hire Me (Q&A)',
+        title: 'My editing setup, explained',
         duration: '1:45',
         views: '45.7K',
-        image: images.pitches.podcast,
+        image: images.works.podcast,
       },
     ],
-    caseStudies: [
+    projects: [
       {
-        kicker: 'Featured Project',
-        title: 'PayPulse Mobile Wallet',
+        kicker: 'Featured work',
+        title: 'PayPulse launch film',
         tag: 'Fintech',
         summary:
-          'Full end-to-end UX architecture and design system for a West African neobank resulting in a 42% boost in onboarding completion.',
-        meta: '8 Screen Flows • Prototype Included',
+          'Launch film and motion pack for a West African mobile wallet, cut for TV, YouTube and Reels.',
+        meta: 'Launch film • Motion pack',
         tone: 'secondary',
       },
       {
-        kicker: 'Brand Evolution',
-        title: 'Apex Logistics Rebrand',
-        tag: 'B2B SaaS',
-        summary:
-          'Multi-platform rebrand including marketing launch video, design tokens, and web application UI components.',
-        meta: 'Visual Identity • Webflow',
+        kicker: 'Brand story',
+        title: 'Apex Logistics rebrand',
+        tag: 'Logistics',
+        summary: 'Brand launch video, motion graphics and short cut-downs for social.',
+        meta: 'Brand video • Social edits',
         tone: 'primary',
       },
     ],
@@ -355,10 +412,10 @@ export const talents: Talent[] = [
       {
         initials: 'TK',
         name: 'Tunde Kupoluyi',
-        company: 'CEO, Kora Growth Labs',
+        company: 'Kora Growth Labs',
         quote:
-          '"Amina was recruited via JobTok after we watched her 60-second UX teardown video. Her turnaround speed and visual finesse exceeded all expectations. 10/10 hire!"',
-        meta: 'Hired for Contract • 3 weeks ago',
+          '"We found Amina’s colour-grading breakdown on JobTok and asked her to cut our launch film. Fast, sharp and a joy to work with."',
+        meta: 'Worked together on a launch film • 3 weeks ago',
       },
     ],
   },
@@ -371,41 +428,42 @@ export const talents: Talent[] = [
     roleTone: 'secondary',
     verifiedTone: 'secondary',
     location: 'Ibadan, Nigeria',
-    bio: 'Hands-on site supervisor with 7+ years delivering commercial and residential developments on-time, strictly adhering to safety standards.',
+    city: 'Ibadan',
+    category: 'Home & Construction',
+    bio: 'Builder in Ibadan. I show how houses really get built, one stage at a time.',
     avatar: images.tunde.avatar,
     cover: images.tunde.cover,
-    mediaLabel: 'On-Site Walkthrough',
+    mediaLabel: 'Site diary',
     mediaDot: '#acedff',
-    badge: { label: 'Certified Pro', color: '#d8e2ff' },
+    badge: { label: 'Construction', color: '#d8e2ff' },
     skills: [
       { label: 'Site Safety', tone: 'neutral' },
-      { label: 'Carpentry', tone: 'neutral' },
-      { label: 'Project Mgmt', tone: 'neutral' },
-      { label: 'Quality Control', tone: 'neutral' },
+      { label: 'Concrete Work', tone: 'neutral' },
+      { label: 'Project Planning', tone: 'neutral' },
+      { label: 'Quality Checks', tone: 'neutral' },
     ],
-    cta: { label: 'Connect', icon: 'handshake', tone: 'primary' },
-    tags: ['Skilled Trade', 'Full-time'],
     feed: {
-      kind: 'Site Supervisor',
-      kindIcon: 'engineering',
-      rate: '$1.5K/mo',
-      pitch:
-        'Seven years running commercial and residential builds. On time, on budget and safety first. Walk the site with me.',
-      availability: 'Available for Hire',
-      sound: 'Original Sound • Site Walkthrough',
-      match: 89,
+      icon: 'engineering',
+      title: 'Day 12: pouring the roof slab',
+      caption: 'Formwork, rebar check and a 6am pour before the heat. Walk the site with me.',
+      sound: 'Original sound • Site walkthrough',
       likes: '7.7K',
       comments: '403',
       saves: '1.0K',
       shares: '1.2K',
+      learn: {
+        tools: ['Poker vibrator', 'Spirit level', 'Tape measure'],
+        materials: ['Concrete mix (1:2:4)', 'Y12 rebar', 'Formwork boards'],
+        tips: ['Pour early in the morning so the concrete doesn’t dry out too fast in the heat.'],
+      },
     },
-    headline: 'Site supervisor & builder | Commercial and residential developments, safety-first.',
-    status: 'Available for Hire',
+    headline: 'Site supervisor & builder | Homes and commercial builds in Ibadan.',
+    status: 'Building in Ibadan',
     stats: { followers: '12.6K', following: '88', views: '133K', rating: '4.8', reviews: 26 },
-    verifiedSkills: [
-      { label: 'Site Safety', tone: 'secondary', icon: 'verified-user' },
-      { label: 'Project Mgmt', tone: 'primary', icon: 'work' },
-      { label: 'Quality Control', tone: 'neutral', icon: 'check-circle' },
+    topSkills: [
+      { label: 'Site Safety', tone: 'secondary', icon: 'health-and-safety' },
+      { label: 'Concrete Work', tone: 'primary', icon: 'foundation' },
+      { label: 'Quality Checks', tone: 'neutral', icon: 'check-circle' },
     ],
   },
 ];
@@ -416,15 +474,16 @@ export const feedTalents = [talents[0]!, talents[3]!, talents[1]!, talents[4]!, 
 /** Explore order matches the design. */
 export const exploreTalents = talents.filter((t) => t.id !== 'josh');
 
+/** "12.4K" / "842" as a number, for sorting. */
+export function countValue(count: string): number {
+  const m = count.match(/^([\d.]+)(K?)$/);
+  if (!m) return 0;
+  return parseFloat(m[1]!) * (m[2] ? 1000 : 1);
+}
+
+/** Sample stand-in until real location preferences exist. */
+export const SAMPLE_HOME_CITY = 'Lagos';
+
 export function findTalent(id: string | undefined): Talent | undefined {
   return talents.find((t) => t.id === id);
 }
-
-export const exploreFilters = [
-  'All',
-  'Remote',
-  'Full-time',
-  'Freelance',
-  'Skilled Trade',
-  'Tech & Design',
-];

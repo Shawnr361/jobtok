@@ -3,8 +3,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Glass, Gradient, IconButton, Scrim } from '../../components/primitives';
 import { alpha, c, glow, gradients } from '../../theme';
 
-/** Feed tabs from the spec (For You | Following | Jobs | Talent) plus Nearby for local hiring. */
-export const FEED_TABS = ['For You', 'Following', 'Jobs', 'Talent', 'Nearby'] as const;
+/** Discovery-first feed tabs. For You surfaces new creators, not only people you follow. */
+export const FEED_TABS = ['For You', 'Following', 'Learn', 'Trending', 'Near You'] as const;
 export type FeedTab = (typeof FEED_TABS)[number];
 
 export function FeedTabs({
@@ -68,7 +68,7 @@ export function FeedTabs({
         <Glass tint={alpha(c.surfaceContainerHigh, 0.6)} style={styles.search}>
           <IconButton
             icon="search"
-            label="Search jobs and talent"
+            label="Search skills and creators"
             size={40}
             iconSize={20}
             onPress={onSearch}

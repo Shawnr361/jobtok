@@ -1,12 +1,12 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DOCK_BODY_HEIGHT } from '../../components/NavDock';
 import { Icon, type IconName } from '../../components/primitives';
-import { feedTalents } from '../../features/demo/data';
+import { SAMPLE_HOME_CITY, countValue, feedTalents } from '../../features/demo/data';
 import { FeedCard } from '../../features/feed/FeedCard';
-import { FeedTabs, type FeedTab } from '../../features/feed/FeedTabs';
+import { FEED_TABS, FeedTabs, type FeedTab } from '../../features/feed/FeedTabs';
 import { c, type } from '../../theme';
 
 const EMPTY: Record<FeedTab, { icon: IconName; title: string; body: string }> = {
@@ -17,19 +17,23 @@ const EMPTY: Record<FeedTab, { icon: IconName; title: string; body: string }> = 
   },
   Following: {
     icon: 'person-add',
-    title: 'Follow people you like',
+    title: 'Follow people whose work you love',
     body: 'Tap + on someone’s video and their new posts will show up here.',
   },
-  Jobs: {
-    icon: 'work',
-    title: 'Job videos are coming',
-    body: 'Soon employers will post short videos of the roles they’re hiring for. You’ll find them here.',
+  Learn: {
+    icon: 'lightbulb-outline',
+    title: 'Nothing to learn here yet',
+    body: 'Videos with tools, steps and tips will show up here.',
   },
-  Talent: { icon: 'person', title: 'No talent videos yet', body: 'Check back soon.' },
-  Nearby: {
-    icon: 'location-on',
-    title: 'No one nearby yet',
-    body: 'Try For You to see people from other cities.',
+  Trending: {
+    icon: 'trending-up',
+    title: 'Nothing trending yet',
+    body: 'The most shared and saved videos will show up here.',
+  },
+  'Near You': {
+    icon: 'near-me',
+    title: 'No one near you yet',
+    body: 'Try For You to see what people are making in other cities.',
   },
 };
 
@@ -37,19 +41,33 @@ const EMPTY: Record<FeedTab, { icon: IconName; title: string; body: string }> = 
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Other screens can open a tab directly, e.g. Explore → "Near You".
+  const params = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState<FeedTab>('For You');
+  // Adjust state when the link parameter changes (React's recommended pattern, no effect).
+  const [seenParam, setSeenParam] = useState<string | undefined>(undefined);
+  if (params.tab !== seenParam) {
+    setSeenParam(params.tab);
+    const wanted = FEED_TABS.find((t) => t === params.tab);
+    if (wanted) setTab(wanted);
+  }
   const [followed, setFollowed] = useState<string[]>([]);
   const [pageHeight, setPageHeight] = useState(0);
 
-  // Sample-data filters. Jobs stays empty until employers can post video jobs.
+  // Sample-data filters. Real ranking will weigh watch time, saves, shares and follows, not
+  // follower counts, so a new creator with a great video can still reach people.
   const items = useMemo(() => {
     switch (tab) {
       case 'Following':
         return feedTalents.filter((t) => followed.includes(t.id));
-      case 'Jobs':
-        return [];
-      case 'Nearby':
-        return feedTalents.filter((t) => t.location.startsWith('Lagos'));
+      case 'Learn':
+        return feedTalents.filter((t) => t.feed.learn);
+      case 'Trending':
+        return [...feedTalents].sort(
+          (a, b) => countValue(b.feed.shares) - countValue(a.feed.shares),
+        );
+      case 'Near You':
+        return feedTalents.filter((t) => t.city === SAMPLE_HOME_CITY);
       default:
         return feedTalents;
     }
@@ -75,6 +93,7 @@ export default function FeedScreen() {
               <FeedCard
                 talent={item}
                 height={pageHeight}
+                context={tab === 'Near You' ? 'near' : tab === 'Learn' ? 'learn' : 'default'}
                 following={followed.includes(item.id)}
                 onToggleFollow={() => toggleFollow(item.id)}
               />

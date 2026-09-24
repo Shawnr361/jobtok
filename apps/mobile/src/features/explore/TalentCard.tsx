@@ -1,4 +1,4 @@
-// Explore result card (design: jobtok_explore_talent_search).
+// Explore result card: a creator and their latest video (design: jobtok_explore_talent_search).
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -23,8 +23,6 @@ export function TalentCard({ talent }: { talent: Talent }) {
   const router = useRouter();
   const [saved, setSaved] = useState(false);
   const open = () => router.push(`/talent/${talent.id}`);
-  const ctaBg = talent.cta.tone === 'secondary' ? c.secondary : c.primary;
-  const ctaFg = talent.cta.tone === 'secondary' ? c.onSecondary : c.onPrimary;
 
   return (
     <View style={[styles.card, shadow('xl')]}>
@@ -99,8 +97,9 @@ export function TalentCard({ talent }: { talent: Talent }) {
           </View>
         </View>
 
-        <Text style={[type.bodySm, { color: c.onSurfaceVariant }]} numberOfLines={2}>
-          {talent.bio}
+        {/* Their latest video says what they do better than a bio. */}
+        <Text style={[type.labelLg, { color: c.onSurface }]} numberOfLines={2}>
+          {talent.feed.title}
         </Text>
 
         <View style={styles.skills}>
@@ -117,7 +116,7 @@ export function TalentCard({ talent }: { talent: Talent }) {
         <View style={styles.foot}>
           <View style={styles.loc}>
             <Icon name="location-on" size={16} color={c.secondary} />
-            <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>{talent.location}</Text>
+            <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>{talent.city}</Text>
           </View>
           <Pressable
             onPress={open}
@@ -125,11 +124,11 @@ export function TalentCard({ talent }: { talent: Talent }) {
             style={({ pressed }) => [
               styles.cta,
               shadow('md'),
-              { backgroundColor: ctaBg, transform: [{ scale: pressed ? 0.95 : 1 }] },
+              { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.95 : 1 }] },
             ]}
           >
-            <Text style={[type.labelMd, { color: ctaFg }]}>{talent.cta.label}</Text>
-            <Icon name={talent.cta.icon} size={14} color={ctaFg} />
+            <Text style={[type.labelMd, { color: c.onPrimary }]}>See their work</Text>
+            <Icon name="arrow-forward" size={14} color={c.onPrimary} />
           </Pressable>
         </View>
       </View>

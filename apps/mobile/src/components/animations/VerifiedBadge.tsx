@@ -1,11 +1,9 @@
 // "Verified" success badge (Stitch animated_svg): pop-in badge, self-drawing check,
 // pulsing rings and sparkles. Built with react-native-svg + Animated.
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Polygon, Stop } from 'react-native-svg';
 import { useLoop, useOnce } from './useLoop';
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 function Ring({
   size,
@@ -107,10 +105,13 @@ export function VerifiedBadge({
   const k = size / 200; // viewBox → px
   const pop = useOnce(800, { easing: Easing.bezier(0.34, 1.56, 0.64, 1) });
   const draw = useOnce(900, { delay: 400, easing: Easing.bezier(0.65, 0, 0.45, 1), native: false });
-  const dashoffset = useMemo(
-    () => draw.interpolate({ inputRange: [0, 1], outputRange: [100, 0] }),
-    [draw],
-  );
+  // The check is drawn from a listener rather than an animated SVG component: on web the
+  // animated wrapper leaks an invalid `collapsable` attribute onto the <path>.
+  const [dashoffset, setDashoffset] = useState(100);
+  useEffect(() => {
+    const id = draw.addListener(({ value }) => setDashoffset(100 - value * 100));
+    return () => draw.removeListener(id);
+  }, [draw]);
   const scale = pop.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.3, 1.08, 1] });
 
   return (
@@ -163,7 +164,7 @@ export function VerifiedBadge({
             strokeOpacity={0.3}
             strokeWidth={1.5}
           />
-          <AnimatedPath
+          <Path
             d="M78 100.5L92.5 115L124 83.5"
             stroke="#FFFFFF"
             strokeWidth={6.5}

@@ -69,7 +69,7 @@ export function NavDock({ state, navigation }: BottomTabBarProps) {
         {tab('explore')}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Create video job"
+          accessibilityLabel="Create a video"
           onPress={() => router.push('/create')}
           style={({ pressed }) => [
             styles.createWrap,
