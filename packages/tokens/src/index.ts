@@ -43,6 +43,8 @@ export const scheme = {
 /** Brand identity colours (DESIGN.md "Palette Architecture"). */
 export const brand = {
   violet: '#8B5CF6',
+  /** Pressed / lower edge of the violet button: same hue, a step darker. */
+  violetDeep: '#7C4DEB',
   indigo: '#6366F1',
   cyan: '#06B6D4',
   sky: '#38BDF8',
@@ -97,13 +99,14 @@ export type ColorToken = keyof (typeof colors)['dark'];
 export const gradients = {
   /** Logo mark, 135°. */
   brand: [brand.violet, brand.indigo, brand.blue] as const,
-  /** Primary CTA (profile / publish), left → right. */
-  cta: [scheme.primaryContainer, scheme.inversePrimary, scheme.tertiaryContainer] as const,
-  /** Quick Apply / progress, left → right. */
-  apply: [scheme.primary, scheme.secondary] as const,
-  /** Avatar rings and the create button, bottom-left → top-right. */
-  ring: [scheme.secondary, scheme.primary] as const,
-  ringHero: [scheme.secondary, scheme.primary, scheme.primaryContainer] as const,
+  // One hue on purpose: colour marks what you can act on, it isn't decoration.
+  /** Primary CTA: a barely-there violet shading so it reads as a solid, lit button. */
+  cta: [brand.violet, brand.violetDeep] as const,
+  /** Progress bars and the active tab line. */
+  apply: [brand.violet, brand.violet] as const,
+  /** Avatar rings and the create button. */
+  ring: [brand.violet, brand.violetDeep] as const,
+  ringHero: [brand.violet, brand.violetDeep] as const,
 };
 
 /** Frosted glass layers (DESIGN.md "Elevation & Depth"). */
@@ -117,11 +120,14 @@ export const glass = {
   hairline: 'rgba(255, 255, 255, 0.08)',
 } as const;
 
-/** Neon glow shadows (colour + radius; opacity applied by the platform shadow props). */
+/**
+ * Elevation shadows (colour + radius; opacity applied by the platform shadow props).
+ * Neutral on purpose: depth comes from layering, not coloured glow. Keys kept for callers.
+ */
 export const glows = {
-  primary: { color: scheme.primaryContainer, radius: 24, opacity: 0.45 },
-  secondary: { color: scheme.secondary, radius: 12, opacity: 0.8 },
-  create: { color: brand.violet, radius: 24, opacity: 0.6 },
+  primary: { color: '#000000', radius: 16, opacity: 0.35 },
+  secondary: { color: '#000000', radius: 10, opacity: 0.3 },
+  create: { color: '#000000', radius: 16, opacity: 0.4 },
 } as const;
 
 export const spacing = {

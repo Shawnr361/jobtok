@@ -15,23 +15,30 @@ import {
   type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MIN_TOUCH_TARGET, alpha, brand, c, glow, radii, spacing, type } from '../theme';
+import { applyRule, ruleHint, type InputRule } from '../lib/input/rules';
+import { MIN_TOUCH_TARGET, alpha, brand, c, glow, gradients, radii, spacing, type } from '../theme';
 import { Logo as BrandLogo, LogoMark } from './Logo';
+import { PressScale } from './animations/PressScale';
+import { SILK_BASE, SilkBackdrop } from './auth/SilkBackdrop';
 import { Gradient, Icon, type IconName } from './primitives';
 
 /**
  * Auth screen shell. `back` adds a top bar with a back arrow: `true` goes back in history
  * (or to the welcome screen), a function handles it (e.g. stepping back inside a flow).
+ * `backdrop="silk"` puts the sign-in silk ribbons behind the content.
  */
 export function Screen({
   children,
   back,
+  backdrop,
 }: {
   children: React.ReactNode;
   back?: boolean | (() => void);
+  backdrop?: 'silk';
 }) {
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, backdrop === 'silk' && { backgroundColor: SILK_BASE }]}>
+      {backdrop === 'silk' && <SilkBackdrop />}
       {back && <AuthHeader onBack={typeof back === 'function' ? back : undefined} />}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -121,21 +128,17 @@ export function Button({
     </>
   );
   return (
-    <Pressable
+    <PressScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: Boolean(inactive), busy: Boolean(loading) }}
       onPress={onPress}
       disabled={inactive}
-      style={({ pressed }) => [
-        { opacity: inactive ? 0.5 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-      ]}
+      to={0.96}
+      style={{ opacity: inactive ? 0.5 : 1 }}
     >
       {variant === 'primary' ? (
-        <Gradient
-          colors={[brand.violet, brand.blue]}
-          style={[styles.button, !inactive && glow('primary')]}
-        >
+        <Gradient colors={gradients.cta} style={[styles.button, !inactive && glow('primary')]}>
           {content}
         </Gradient>
       ) : (
@@ -143,7 +146,7 @@ export function Button({
           {content}
         </View>
       )}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -156,6 +159,10 @@ export function Field({
   onFocus,
   onBlur,
   style,
+  rule = 'text',
+  hint,
+  counter,
+  onChangeText,
   ...props
 }: TextInputProps & {
   label: string;
@@ -167,19 +174,32 @@ export function Field({
   right?: ReactNode;
   /** Accessory at the end of the label row, e.g. "Forgot password?". */
   labelRight?: ReactNode;
+  /** Which characters the field accepts; anything else doesn't go in. Default: any text. */
+  rule?: InputRule;
+  /** A short note under the field, e.g. what to type. */
+  hint?: string;
+  /** Show "12/60" under the field. Defaults to on whenever there's a maxLength. */
+  counter?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
+  const [rejected, setRejected] = useState(false);
+  const length = typeof props.value === 'string' ? props.value.length : 0;
+  const showCount = (counter ?? Boolean(props.maxLength)) && !props.secureTextEntry;
+  const note = rejected ? ruleHint(rule) : hint;
   return (
     <View style={{ gap: spacing[1] }}>
       <View style={styles.labelRow}>
         <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>{label}</Text>
         {labelRight}
       </View>
-      <View style={[styles.input, focused && [styles.inputFocused, glow('primary')]]}>
+      <View
+        style={[styles.input, focused && styles.inputFocused, rejected && styles.inputRejected]}
+      >
         {icon && <Icon name={icon} size={20} color={focused ? brand.lavender : c.outline} />}
         {prefix}
         <TextInput
           accessibilityLabel={label}
+          accessibilityHint={hint}
           placeholderTextColor={c.outline}
           style={[type.bodyLg, styles.inputText, style]}
           onFocus={(e) => {
@@ -188,24 +208,55 @@ export function Field({
           }}
           onBlur={(e) => {
             setFocused(false);
+            setRejected(false);
             onBlur?.(e);
+          }}
+          onChangeText={(raw) => {
+            const { value, rejected: dropped } = applyRule(rule, raw);
+            setRejected(dropped);
+            onChangeText?.(value);
           }}
           {...props}
         />
         {right}
       </View>
+      {(note || showCount) && (
+        <View style={styles.fieldFoot}>
+          <Text
+            style={[type.bodySm, { flex: 1, color: rejected ? c.error : c.outline }]}
+            accessibilityLiveRegion={rejected ? 'polite' : 'none'}
+          >
+            {note ?? ''}
+          </Text>
+          {showCount && props.maxLength ? (
+            <CharCount length={length} max={props.maxLength} />
+          ) : null}
+        </View>
+      )}
     </View>
   );
 }
 
+/** "12/60": grey while there's room, amber near the limit, red at it. */
+export function CharCount({ length, max }: { length: number; max: number }) {
+  const color = length >= max ? c.error : length >= max * 0.9 ? brand.alert : c.outline;
+  return (
+    <Text
+      style={[type.labelSm, { color, fontVariant: ['tabular-nums'] }]}
+      accessibilityLabel={`${length} of ${max} characters used`}
+    >
+      {length}/{max}
+    </Text>
+  );
+}
+
 /** Small uppercase pill above a headline. */
+/** A quiet line of context above a headline: sentence case, no pill. */
 export function Eyebrow({ icon, children }: { icon?: IconName; children: string }) {
   return (
-    <View style={styles.eyebrow}>
-      {icon && <Icon name={icon} size={14} color={c.secondary} />}
-      <Text style={[type.labelSm, { color: c.secondary, letterSpacing: 1.2 }]}>
-        {children.toUpperCase()}
-      </Text>
+    <View style={styles.kicker}>
+      {icon && <Icon name={icon} size={14} color={c.onSurfaceVariant} />}
+      <Text style={[type.labelMd, { color: c.onSurfaceVariant }]}>{children}</Text>
     </View>
   );
 }
@@ -346,6 +397,8 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fieldFoot: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 4 },
+  inputRejected: { borderColor: c.error },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -354,18 +407,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
   },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  eyebrow: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: alpha(c.secondary, 0.3),
-    backgroundColor: alpha(c.secondary, 0.08),
-  },
+  kicker: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6 },
   divider: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   rule: { flex: 1, height: 1, backgroundColor: c.outlineVariant },
   tile: {

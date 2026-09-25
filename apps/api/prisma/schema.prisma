@@ -143,6 +143,37 @@ enum OAuthProvider {
   @@map("oauth_provider")
 }
 
+/// Lifecycle of an uploaded video. Only `ready` videos can be published or played.
+enum VideoStatus {
+  awaiting_upload
+  processing
+  ready
+  failed
+
+  @@map("video_status")
+}
+
+enum PostVisibility {
+  public
+  private
+
+  @@map("post_visibility")
+}
+
+/// Signals for future discovery ranking. Recorded only when the action really happened.
+enum InteractionType {
+  impression
+  play
+  complete
+  like
+  save
+  share
+  profile_visit
+  follow
+
+  @@map("interaction_type")
+}
+
 enum ReportStatus {
   pending
   reviewing
@@ -184,6 +215,7 @@ model Category {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   skills Skill[]
+  posts  Post[]
 
   @@map("categories")
 }
@@ -232,37 +264,65 @@ model User {
   otpChallenges          OtpChallenge[]
   authTokens             AuthToken[]
   oauthAccounts          OAuthAccount[]
+  interactions           InteractionEvent[]         @relation("InteractionActor")
+  interactionsReceived   InteractionEvent[]         @relation("InteractionCreator")
 
   @@map("users")
 }
 
-/// Job seeker profile (spec: `profiles`).
+/// Creator profile (spec: `profiles`): one per user, a living portfolio rather than a CV.
+/// `full_name` is the public display name; first/last names are only shown to the owner.
+/// Location is city/region level; latitude/longitude are never returned by the API.
 model Profile {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId          String   @unique @map("user_id") @db.Uuid
-  username        String   @unique @db.VarChar(50)
-  fullName        String?  @map("full_name") @db.VarChar(100)
-  headline        String?  @db.VarChar(150)
-  bio             String?
-  avatarUrl       String?  @map("avatar_url") @db.VarChar(500)
-  locationCity    String?  @map("location_city") @db.VarChar(100)
-  locationState   String?  @map("location_state") @db.VarChar(100)
-  locationCountry String   @default("NG") @map("location_country_code") @db.Char(2)
-  latitude        Decimal? @db.Decimal(10, 8)
-  longitude       Decimal? @db.Decimal(11, 8)
-  availability    String?  @db.VarChar(50)
-  experienceYears Int      @default(0) @map("experience_years")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String   @unique @map("user_id") @db.Uuid
+  /// Lowercase handle (CHECK `profiles_username_format`).
+  username         String   @unique @db.VarChar(50)
+  fullName         String?  @map("full_name") @db.VarChar(100)
+  firstName        String?  @map("first_name") @db.VarChar(50)
+  lastName         String?  @map("last_name") @db.VarChar(50)
+  /// "What do you do?"
+  headline         String?  @db.VarChar(150)
+  bio              String?
+  avatarUrl        String?  @map("avatar_url") @db.VarChar(500)
+  /// Uploaded profile photo in media storage: avatars/<uuid>.jpg (CHECK profiles_avatar_storage_key_format).
+  avatarStorageKey String?  @unique @map("avatar_storage_key") @db.VarChar(100)
+  locationCity     String?  @map("location_city") @db.VarChar(100)
+  locationState    String?  @map("location_state") @db.VarChar(100)
+  locationCountry  String   @default("NG") @map("location_country_code") @db.Char(2)
+  latitude         Decimal? @db.Decimal(10, 8)
+  longitude        Decimal? @db.Decimal(11, 8)
+  /// open_to_projects | open_to_collaborate | busy (CHECK `profiles_availability_valid`).
+  availability     String?  @db.VarChar(50)
+  experienceYears  Int      @default(0) @map("experience_years")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   country        Country         @relation(fields: [locationCountry], references: [code])
   skills         ProfileSkill[]
   portfolioItems PortfolioItem[]
+  links          ProfileLink[]
   applications   Application[]
 
   @@index([locationCountry, locationState, locationCity], map: "idx_profiles_location")
   @@map("profiles")
+}
+
+/// External portfolio links (Behance, GitHub, Instagram, a website...). http(s) only.
+model ProfileLink {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  label     String   @db.VarChar(40)
+  url       String   @db.VarChar(500)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, url])
+  @@index([profileId, sortOrder], map: "idx_profile_links_profile_id")
+  @@map("profile_links")
 }
 
 model Skill {
@@ -270,6 +330,8 @@ model Skill {
   name       String   @unique @db.VarChar(100)
   slug       String   @unique @db.VarChar(100)
   categoryId String?  @map("category_id") @db.Uuid
+  /// Seeded taxonomy skills are curated; skills people add themselves are not (moderation).
+  isCurated  Boolean  @default(false) @map("is_curated")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   category  Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -285,6 +347,7 @@ model ProfileSkill {
   profileId   String      @map("profile_id") @db.Uuid
   skillId     String      @map("skill_id") @db.Uuid
   proficiency Proficiency @default(intermediate)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
@@ -320,27 +383,50 @@ model EmployerProfile {
 
 // ─── Showcase & portfolio ───────────────────────────────────────────────────
 
-/// Feed item. Video binaries live in object storage; only URLs/metadata are stored here.
+/// Feed item. Video binaries live in object storage; only references and metadata are stored
+/// here. A video is playable when `status` is ready and it has a `video_storage_key` (files
+/// checked by our own pipeline); `video_url` is only for legacy/external references.
+/// `title` is the caption ("What are you showing?").
 model Post {
-  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId               String   @map("user_id") @db.Uuid
-  postType             PostType @map("post_type")
-  title                String?  @db.VarChar(150)
+  id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String         @map("user_id") @db.Uuid
+  postType             PostType       @map("post_type")
+  title                String?        @db.VarChar(150)
   description          String?
-  videoUrl             String?  @map("video_url") @db.VarChar(500)
-  videoThumbnailUrl    String?  @map("video_thumbnail_url") @db.VarChar(500)
-  videoDurationSeconds Int?     @map("video_duration_seconds")
-  locationCity         String?  @map("location_city") @db.VarChar(100)
-  locationState        String?  @map("location_state") @db.VarChar(100)
-  locationCountry      String   @default("NG") @map("location_country_code") @db.Char(2)
-  isPublished          Boolean  @default(true) @map("is_published")
-  isFlagged            Boolean  @default(false) @map("is_flagged")
-  flagCount            Int      @default(0) @map("flag_count")
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  videoUrl             String?        @map("video_url") @db.VarChar(500)
+  videoThumbnailUrl    String?        @map("video_thumbnail_url") @db.VarChar(500)
+  videoDurationSeconds Int?           @map("video_duration_seconds")
+  status               VideoStatus    @default(ready)
+  visibility           PostVisibility @default(public)
+  categoryId           String?        @map("category_id") @db.Uuid
+  /// Internal storage keys. Never returned by the API.
+  videoStorageKey      String?        @unique @map("video_storage_key") @db.VarChar(200)
+  thumbnailStorageKey  String?        @map("thumbnail_storage_key") @db.VarChar(200)
+  /// Detected from the file itself, never taken from the client.
+  videoMimeType        String?        @map("video_mime_type") @db.VarChar(50)
+  videoSizeBytes       Int?           @map("video_size_bytes")
+  videoWidth           Int?           @map("video_width")
+  videoHeight          Int?           @map("video_height")
+  /// Human-readable reason when processing failed.
+  processingError      String?        @map("processing_error") @db.VarChar(300)
+  /// Optional "Learn this" details.
+  learnTools           String[]       @default([]) @map("learn_tools")
+  learnMaterials       String[]       @default([]) @map("learn_materials")
+  learnTips            String[]       @default([]) @map("learn_tips")
+  publishedAt          DateTime?      @map("published_at") @db.Timestamptz(6)
+  locationCity         String?        @map("location_city") @db.VarChar(100)
+  locationState        String?        @map("location_state") @db.VarChar(100)
+  locationCountry      String         @default("NG") @map("location_country_code") @db.Char(2)
+  isPublished          Boolean        @default(true) @map("is_published")
+  isFlagged            Boolean        @default(false) @map("is_flagged")
+  flagCount            Int            @default(0) @map("flag_count")
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  country        Country         @relation(fields: [locationCountry], references: [code])
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country        Country            @relation(fields: [locationCountry], references: [code])
+  category       Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  interactions   InteractionEvent[]
   tags           PostTag[]
   portfolioItems PortfolioItem[]
   job            Job?
@@ -352,9 +438,37 @@ model Post {
   @@index([postType, isPublished, createdAt(sort: Desc)], map: "idx_posts_post_type")
   @@index([isPublished, isFlagged, createdAt(sort: Desc)], map: "idx_posts_feed")
   @@index([locationCountry, locationState, locationCity], map: "idx_posts_location")
+  @@index([status, isPublished, visibility, publishedAt(sort: Desc)], map: "idx_posts_video_feed")
+  @@index([categoryId], map: "idx_posts_category_id")
   @@map("posts")
 }
 
+/// Append-only interaction log (impressions, plays, completions, likes, saves, shares,
+/// profile visits, follows): the raw material for future discovery ranking.
+model InteractionEvent {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type      InteractionType
+  /// Who did it (null if not signed in).
+  userId    String?         @map("user_id") @db.Uuid
+  postId    String?         @map("post_id") @db.Uuid
+  /// The creator the action was about (e.g. followed, profile visited).
+  creatorId String?         @map("creator_id") @db.Uuid
+  /// How much was watched, for play/complete events.
+  watchMs   Int?            @map("watch_ms")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User? @relation("InteractionActor", fields: [userId], references: [id], onDelete: SetNull)
+  creator User? @relation("InteractionCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  post    Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, type, createdAt], map: "idx_interaction_events_post")
+  @@index([userId, createdAt], map: "idx_interaction_events_user")
+  @@index([creatorId, type], map: "idx_interaction_events_creator")
+  @@map("interaction_events")
+}
+
+/// A project on a creator profile. `post_id` links the video that shows it (videos come later);
+/// `is_pinned` marks featured work.
 model PortfolioItem {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   profileId    String    @map("profile_id") @db.Uuid
@@ -366,6 +480,7 @@ model PortfolioItem {
   projectDate  DateTime? @map("project_date") @db.Date
   isPinned     Boolean   @default(false) @map("is_pinned")
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   profile      Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
   post         Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)

@@ -70,16 +70,39 @@ export type ReportEntityType = (typeof REPORT_ENTITY_TYPES)[number];
 export const REPORT_STATUSES = ['pending', 'reviewing', 'actioned', 'dismissed'] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
-export const LAUNCH_CATEGORIES = [
-  { slug: 'digital-tech', name: 'Digital & Tech' },
+/**
+ * Skill categories: practical skills and creativity (things people do, make, build, teach and
+ * create). Stored in the `categories` table; add new ones here and re-run the seed.
+ */
+export const SKILL_CATEGORIES = [
+  { slug: 'technology', name: 'Technology' },
+  { slug: 'engineering', name: 'Engineering' },
+  { slug: 'build-and-make', name: 'Build & Make' },
   { slug: 'skilled-trades', name: 'Skilled Trades' },
-  { slug: 'beauty-fashion', name: 'Beauty & Fashion' },
+  { slug: 'food', name: 'Food' },
+  { slug: 'fashion', name: 'Fashion' },
+  { slug: 'beauty', name: 'Beauty' },
   { slug: 'creative', name: 'Creative' },
-  { slug: 'food-hospitality', name: 'Food & Hospitality' },
-  { slug: 'professional', name: 'Professional' },
+  { slug: 'photography', name: 'Photography' },
+  { slug: 'videography', name: 'Videography' },
+  { slug: 'art', name: 'Art' },
+  { slug: 'agriculture', name: 'Agriculture' },
+  { slug: 'business', name: 'Business' },
   { slug: 'education', name: 'Education' },
+  { slug: 'science', name: 'Science' },
+  { slug: 'automotive', name: 'Automotive' },
+  { slug: 'electronics', name: 'Electronics' },
+  { slug: 'home-and-construction', name: 'Home & Construction' },
+  { slug: 'crafts', name: 'Crafts' },
+  { slug: 'health-and-care', name: 'Health & Care' },
+  { slug: 'lifestyle-skills', name: 'Lifestyle Skills' },
+  { slug: 'african-culture', name: 'African Culture' },
 ] as const;
-export type CategorySlug = (typeof LAUNCH_CATEGORIES)[number]['slug'];
+export type CategorySlug = (typeof SKILL_CATEGORIES)[number]['slug'];
+
+/** Optional, low-key availability shown on a creator profile. Never required. */
+export const AVAILABILITY_OPTIONS = ['open_to_projects', 'open_to_collaborate', 'busy'] as const;
+export type Availability = (typeof AVAILABILITY_OPTIONS)[number];
 
 /** Product limits from the spec. */
 export const LIMITS = {

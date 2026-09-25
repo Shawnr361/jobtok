@@ -2,10 +2,8 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useState, type ComponentProps, type ReactNode } from 'react';
+import { type ComponentProps, type ReactNode } from 'react';
 import {
-  Animated,
-  Easing,
   Image,
   Platform,
   Pressable,
@@ -17,7 +15,9 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import Reanimated, { useReducedMotion } from 'react-native-reanimated';
 import { c, glow, radii, type } from '../theme';
+import { PressScale } from './animations/PressScale';
 
 export type IconName = ComponentProps<typeof MaterialIcons>['name'];
 
@@ -122,41 +122,47 @@ export function Scrim({
   );
 }
 
-/** Pulsing status dot (Tailwind `animate-pulse`). */
+/** Pulsing status dot: a live indicator, so it breathes (Reanimated CSS animation). */
 export function PulseDot({ color = c.secondary, size = 8 }: { color?: string; size?: number }) {
-  const [opacity] = useState(() => new Animated.Value(1));
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.35, duration: 900, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 900, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [opacity]);
   return (
-    <Animated.View
-      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity }}
+    <Reanimated.View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        animationName: { from: { opacity: 1 }, to: { opacity: 0.35 } },
+        animationDuration: '900ms',
+        animationDirection: 'alternate',
+        animationIterationCount: 'infinite',
+        animationTimingFunction: 'ease-in-out',
+      }}
     />
   );
 }
 
-/** Continuous rotation (the vinyl sound disc / music note). */
+/** Continuous rotation (the vinyl sound disc): constant motion, so linear. */
 export function Spin({ children, duration = 6000 }: { children: ReactNode; duration?: number }) {
-  const [turn] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(turn, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: true }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [turn, duration]);
-  const rotate = useMemo(
-    () => turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }),
-    [turn],
+  const reduced = useReducedMotion();
+  return (
+    <Reanimated.View
+      style={
+        reduced
+          ? undefined
+          : {
+              animationName: {
+                from: { transform: [{ rotate: '0deg' }] },
+                to: { transform: [{ rotate: '360deg' }] },
+              },
+              animationDuration: `${duration}ms`,
+              animationIterationCount: 'infinite',
+              animationTimingFunction: 'linear',
+            }
+      }
+    >
+      {children}
+    </Reanimated.View>
   );
-  return <Animated.View style={{ transform: [{ rotate }] }}>{children}</Animated.View>;
 }
 
 /** Pill chip used for categories, filters and badges. */
@@ -187,14 +193,15 @@ export function Chip({
   );
   if (!onPress) return body;
   return (
-    <Pressable
+    <PressScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: Boolean(active) }}
       hitSlop={4}
+      to={0.92}
     >
       {body}
-    </Pressable>
+    </PressScale>
   );
 }
 

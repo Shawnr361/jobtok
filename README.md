@@ -31,6 +31,13 @@ This is a Turborepo monorepo with npm workspaces.
 - Node.js 20 or newer (developed on Node 26) and npm 11
 - A PostgreSQL 17 database: Docker Desktop (recommended), **or** the embedded PostgreSQL included as a dev dependency (no Docker or admin rights needed)
 - The Expo Go app on a phone, or an Android emulator or iOS simulator
+- FFmpeg (`ffprobe` and `ffmpeg` on PATH) for video uploads, e.g. `winget install Gyan.FFmpeg`
+
+## Quick start on Windows
+
+Double-click `start-jobtok.cmd`. It opens the database, the API and the Expo app in their own
+windows, points the app at this computer's Wi-Fi address so a phone on the same network can
+reach it, and opens http://localhost:8081. Sign-in codes are printed in the API window.
 
 ## Getting started
 

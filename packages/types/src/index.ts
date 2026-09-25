@@ -3,3 +3,5 @@ export * from './countries.js';
 export * from './entities.js';
 export * from './api.js';
 export * from './auth.js';
+export * from './profile.js';
+export * from './video.js';

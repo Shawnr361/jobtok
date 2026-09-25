@@ -110,7 +110,7 @@ describe('core relationships', () => {
         where: { slug: 'carpentry' },
         include: { category: true, profiles: true, postTags: true, jobSkills: true },
       });
-      expect(carpentry.category?.slug).toBe('skilled-trades');
+      expect(carpentry.category?.slug).toBe('build-and-make');
       expect(carpentry.profiles.map((p) => p.profileId)).toContain(SEED_IDS.profile('ada'));
       expect(carpentry.postTags.map((t) => t.postId)).toContain(SEED_IDS.adaShowcase);
       expect(carpentry.jobSkills.map((j) => j.jobId)).toContain(SEED_IDS.bolaJob);

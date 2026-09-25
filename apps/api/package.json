@@ -20,7 +20,8 @@
     "db:reset": "prisma migrate reset --force && prisma db seed",
     "db:studio": "prisma studio",
     "generate": "prisma generate",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "founder": "tsx --env-file-if-exists=.env scripts/founder.ts"
   },
   "dependencies": {
     "@jobtok/types": "*",

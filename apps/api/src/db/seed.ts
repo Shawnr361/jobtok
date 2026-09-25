@@ -1,4 +1,4 @@
-import { COUNTRIES, LAUNCH_CATEGORIES } from '@jobtok/types';
+import { COUNTRIES, SKILL_CATEGORIES } from '@jobtok/types';
 import { transitionApplication } from '../modules/applications/application-status.js';
 import { hashPassword } from '../modules/auth/crypto.js';
 import type { Db } from './client.js';
@@ -42,7 +42,7 @@ export async function seed(db: Db, { withFixtures = true } = {}): Promise<SeedSu
   }
 
   let skillCount = 0;
-  for (const [index, cat] of LAUNCH_CATEGORIES.entries()) {
+  for (const [index, cat] of SKILL_CATEGORIES.entries()) {
     const categoryId = seedId(`category:${cat.slug}`);
     await db.category.upsert({
       where: { slug: cat.slug },
@@ -53,18 +53,29 @@ export async function seed(db: Db, { withFixtures = true } = {}): Promise<SeedSu
       const slug = slugify(name);
       await db.skill.upsert({
         where: { slug },
-        create: { id: seedId(`skill:${slug}`), name, slug, categoryId },
-        update: { name, categoryId },
+        create: { id: seedId(`skill:${slug}`), name, slug, categoryId, isCurated: true },
+        update: { name, categoryId, isCurated: true },
       });
       skillCount++;
     }
   }
+  // Categories that left the taxonomy go away; their skills stay (uncategorized, uncurated),
+  // so nobody's profile loses a skill.
+  const slugs = SKILL_CATEGORIES.map((c) => c.slug as string);
+  await db.category.deleteMany({ where: { slug: { notIn: slugs } } });
+  const curated = Object.values(SKILLS_BY_CATEGORY)
+    .flat()
+    .map((name) => slugify(name));
+  await db.skill.updateMany({
+    where: { isCurated: true, slug: { notIn: curated } },
+    data: { isCurated: false },
+  });
 
   if (withFixtures) await seedFixtures(db);
 
   return {
     countries: Object.keys(COUNTRIES).length,
-    categories: LAUNCH_CATEGORIES.length,
+    categories: SKILL_CATEGORIES.length,
     skills: skillCount,
     users: withFixtures ? Object.keys(SEED_USERS).length : 0,
   };
@@ -104,7 +115,7 @@ async function seedFixtures(db: Db) {
     bio: 'I build and renovate kitchens, wardrobes and furniture across Lagos.',
     locationCity: 'Ikeja',
     locationState: 'Lagos',
-    availability: 'available',
+    availability: 'open_to_projects',
     experienceYears: 5,
   };
   await db.profile.upsert({
@@ -119,7 +130,7 @@ async function seedFixtures(db: Db) {
     headline: 'Brand & UI designer',
     locationCity: 'Enugu',
     locationState: 'Enugu',
-    availability: 'freelance',
+    availability: 'open_to_collaborate',
     experienceYears: 3,
   };
   await db.profile.upsert({

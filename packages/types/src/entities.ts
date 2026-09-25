@@ -4,7 +4,6 @@ import type {
   ApplicationStatus,
   EmploymentType,
   PostType,
-  Proficiency,
   SalaryPeriod,
   UserRole,
   WorkArrangement,
@@ -36,26 +35,7 @@ export interface Location {
   country: string;
 }
 
-export interface ProfileSkill {
-  id: string;
-  name: string;
-  category: string | null;
-  proficiency: Proficiency;
-}
-
-export interface Profile {
-  id: string;
-  userId: string;
-  username: string;
-  fullName: string | null;
-  headline: string | null;
-  bio: string | null;
-  avatarUrl: string | null;
-  location: Location;
-  availability: string | null;
-  experienceYears: number;
-  skills: ProfileSkill[];
-}
+// Creator profiles live in profile.ts.
 
 export interface EmployerProfile {
   id: string;

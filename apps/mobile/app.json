@@ -30,7 +30,16 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-font",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "JobTok needs your videos so you can choose one to post and show what you can do.",
+          "cameraPermission": "JobTok uses your camera so you can record a video of your work.",
+          "microphonePermission": "JobTok uses your microphone so your videos have sound."
+        }
+      ]
     ]
   }
 }

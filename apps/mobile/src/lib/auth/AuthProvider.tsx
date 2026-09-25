@@ -111,6 +111,17 @@ export function useAuth() {
 }
 
 export function errorMessage(err: unknown): string {
-  if (err instanceof ApiClientError) return err.message;
-  return 'Something went wrong. Please try again.';
+  if (!(err instanceof ApiClientError)) return 'Something went wrong. Please try again.';
+  // Validation errors carry the specific reason ("Enter a valid link..."). Show it when it's
+  // one of our human messages rather than a technical default.
+  if (err.code === 'validation_error' && Array.isArray(err.details)) {
+    const first = (err.details as { message?: unknown }[])[0]?.message;
+    if (
+      typeof first === 'string' &&
+      !/^(invalid|too (big|small)|expected|unrecognized|required)/i.test(first)
+    ) {
+      return first;
+    }
+  }
+  return err.message;
 }

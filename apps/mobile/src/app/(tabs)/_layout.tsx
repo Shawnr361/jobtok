@@ -12,7 +12,12 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <NavDock {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.surface } }}
+      screenOptions={{
+        headerShown: false,
+        sceneStyle: { backgroundColor: c.surface },
+        // Tabs are peers: they switch instantly (Apple HIG / Expo motion guidance).
+        animation: 'none',
+      }}
     >
       <Tabs.Screen name="feed" options={{ title: 'Feed' }} />
       <Tabs.Screen name="explore" options={{ title: 'Explore' }} />

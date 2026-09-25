@@ -1,19 +1,19 @@
 // One-time-code entry (Stitch "OTP verification"): six code bubbles fed by an on-screen
 // keypad. A hidden input sits over the bubbles so typing, pasting and hardware keyboards
 // still work, without the system keyboard covering the keypad.
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import {
-  Animated,
-  Easing,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Reanimated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { alpha, brand, c, glow, radii, type } from '../theme';
-import { useReducedMotion } from './animations/useLoop';
+import { EASE_OUT, spring } from '../theme/motion';
 import { Icon } from './primitives';
 
 export interface CodeBoxesHandle {
@@ -23,25 +23,28 @@ export interface CodeBoxesHandle {
 
 function Digit({ char, active }: { char?: string; active: boolean }) {
   // Each digit lands with a small pop, so every key press is visibly "received".
-  const [pop] = useState(() => new Animated.Value(1));
+  const reduced = useReducedMotion();
+  const pop = useSharedValue(1);
   useEffect(() => {
-    if (!char) return;
-    pop.setValue(0.8);
-    Animated.spring(pop, { toValue: 1, friction: 4, tension: 180, useNativeDriver: true }).start();
-  }, [char, pop]);
+    if (!char || reduced) return;
+    pop.set(
+      withSequence(withTiming(0.86, { duration: 60, easing: EASE_OUT }), withSpring(1, spring.pop)),
+    );
+  }, [char, pop, reduced]);
+  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.get() }] }));
 
   return (
-    <Animated.View
+    <Reanimated.View
       style={[
         styles.box,
         char ? styles.boxFilled : null,
         active && [styles.boxActive, glow('secondary')],
-        { transform: [{ scale: pop }] },
+        popStyle,
       ]}
     >
       <Text style={[type.headlineMd, { color: c.onSurface }]}>{char ?? ''}</Text>
       <View style={[styles.dot, { backgroundColor: char ? c.secondary : 'transparent' }]} />
-    </Animated.View>
+    </Reanimated.View>
   );
 }
 
@@ -50,31 +53,28 @@ export const CodeBoxes = forwardRef<
   { value: string; onChange: (v: string) => void; length?: number; onSubmit?: () => void }
 >(function CodeBoxes({ value, onChange, length = 6, onSubmit }, ref) {
   const reduced = useReducedMotion();
-  const [shakeX] = useState(() => new Animated.Value(0));
+  const shakeX = useSharedValue(0);
 
   useImperativeHandle(
     ref,
     () => ({
       shake() {
+        // A wrong code: the error haptic lands with the first swing of the shake.
+        if (Platform.OS !== 'web') {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
         if (reduced) return;
-        shakeX.setValue(0);
-        Animated.sequence(
-          [10, -10, 7, -7, 3, 0].map((toValue) =>
-            Animated.timing(shakeX, {
-              toValue,
-              duration: 55,
-              easing: Easing.linear,
-              useNativeDriver: true,
-            }),
-          ),
-        ).start();
+        shakeX.set(
+          withSequence(...[10, -10, 7, -7, 3, 0].map((x) => withTiming(x, { duration: 55 }))),
+        );
       },
     }),
     [reduced, shakeX],
   );
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.get() }] }));
 
   return (
-    <Animated.View style={[styles.row, { transform: [{ translateX: shakeX }] }]}>
+    <Reanimated.View style={[styles.row, shakeStyle]}>
       {Array.from({ length }, (_, i) => (
         <Digit key={i} char={value[i]} active={i === Math.min(value.length, length - 1)} />
       ))}
@@ -93,7 +93,7 @@ export const CodeBoxes = forwardRef<
         autoFocus={Platform.OS === 'web'}
         style={styles.hiddenInput}
       />
-    </Animated.View>
+    </Reanimated.View>
   );
 });
 

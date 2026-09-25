@@ -10,3 +10,7 @@ coverage/
 !.env.example
 .DS_Store
 .claude/
+
+# unlazy completion ledgers (local working files)
+.unlazy/
+.unlazy-hook-state.json

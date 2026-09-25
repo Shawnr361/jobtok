@@ -1,2 +1,6 @@
 .pgdata/
 src/generated/
+# Development-only local video storage
+.media/
+# Development-only copy of OTP codes (dev SMS provider)
+.dev-sms.log

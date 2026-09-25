@@ -16,65 +16,64 @@ export function slugify(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
-/** Launch skills per spec category (Part 1 §1 "Launch Categories"). */
+/**
+ * Curated starter skills per category: things people do, make, build, teach and create.
+ * People can add their own skills too (stored uncurated). Names must be unique across the list.
+ */
 export const SKILLS_BY_CATEGORY: Record<CategorySlug, readonly string[]> = {
-  'digital-tech': [
+  technology: [
     'Web Development',
     'Mobile App Development',
     'UI/UX Design',
     'Data Analysis',
-    'Digital Marketing',
     'IT Support',
-    'Social Media Management',
+    'Cybersecurity',
   ],
+  engineering: ['Solar Installation', 'CAD Design', 'Prototyping', 'Robotics', 'Civil Engineering'],
+  'build-and-make': ['Carpentry', 'Furniture Making', 'Metalwork', 'Upholstery', '3D Printing'],
   'skilled-trades': [
-    'Carpentry',
     'Plumbing',
     'Electrical Installation',
     'Welding & Fabrication',
     'Tiling',
-    'Auto Mechanics',
     'Painting & Decorating',
+    'Air Conditioning Repair',
   ],
-  'beauty-fashion': [
-    'Hairdressing',
-    'Barbering',
-    'Makeup Artistry',
-    'Tailoring',
-    'Fashion Design',
-    'Nail Technology',
-  ],
-  creative: [
-    'Graphic Design',
-    'Photography',
-    'Videography',
-    'Video Editing',
-    'Content Writing',
-    'Animation',
-  ],
-  'food-hospitality': [
-    'Catering',
-    'Baking & Pastry',
-    'Professional Cooking',
-    'Event Planning',
-    'Bartending',
-    'Housekeeping',
-  ],
-  professional: [
-    'Accounting',
-    'Customer Service',
+  food: ['Professional Cooking', 'Catering', 'Baking & Pastry', 'Small Chops', 'Bartending'],
+  fashion: ['Tailoring', 'Fashion Design', 'Shoemaking', 'Pattern Making'],
+  beauty: ['Hairdressing', 'Barbering', 'Makeup Artistry', 'Nail Technology', 'Hair Braiding'],
+  creative: ['Graphic Design', 'Animation', 'Content Writing', 'Music Production'],
+  photography: ['Photography', 'Photo Editing', 'Product Photography'],
+  videography: ['Videography', 'Video Editing', 'Colour Grading'],
+  art: ['Painting', 'Drawing & Illustration', 'Sculpture', 'Calligraphy'],
+  agriculture: ['Crop Farming', 'Poultry Farming', 'Fish Farming', 'Greenhouse Farming'],
+  business: [
+    'Digital Marketing',
+    'Social Media Management',
     'Sales',
-    'Administration',
-    'Human Resources',
-    'Project Management',
+    'Accounting',
+    'Event Planning',
+    'Customer Service',
   ],
   education: [
     'Tutoring',
     'Mathematics Teaching',
     'English Teaching',
-    'Early Childhood Education',
     'Coding Instruction',
     'Exam Preparation',
+  ],
+  science: ['Laboratory Work', 'Research', 'Science Communication'],
+  automotive: ['Auto Mechanics', 'Auto Electrics', 'Panel Beating', 'Car Detailing'],
+  electronics: ['Phone Repair', 'Electronics Repair', 'Inverter Installation', 'CCTV Installation'],
+  'home-and-construction': ['Masonry', 'Roofing', 'Interior Design', 'POP Ceilings', 'Landscaping'],
+  crafts: ['Beadwork', 'Leatherwork', 'Pottery', 'Weaving', 'Adire Tie-Dye'],
+  'health-and-care': ['Caregiving', 'First Aid', 'Fitness Training', 'Nutrition Coaching'],
+  'lifestyle-skills': ['Home Cleaning', 'Home Organising', 'Gardening', 'Childcare'],
+  'african-culture': [
+    'Traditional Drumming',
+    'Cultural Dance',
+    'Storytelling',
+    'Traditional Attire',
   ],
 };
 

@@ -10,9 +10,42 @@ import {
   Scrim,
   type IconName,
 } from '../../components/primitives';
+import { PressScale } from '../../components/animations/PressScale';
+import { ToggleIcon } from '../../components/animations/ToggleMotion';
 import { alpha, c, glow, gradients, radii, shadow, type } from '../../theme';
 import { skillStyle } from '../explore/TalentCard';
-import type { Skill, Talent, Work } from '../demo/data';
+import type { Skill, Talent } from '../demo/data';
+
+export interface ProfileStat {
+  value: string;
+  label: string;
+  icon?: IconName;
+  color?: string;
+}
+
+/** A video tile under "My Work". Real videos may not have a thumbnail yet. */
+export interface ProfileWorkTile {
+  key: string;
+  title: string;
+  duration?: string;
+  views?: string;
+  image: ImageSourcePropType | null;
+  /** Only the owner sees private videos; they get a lock. */
+  locked?: boolean;
+  onPress?: () => void;
+}
+
+export interface ProfileProjectCard {
+  key: string;
+  kicker: string;
+  title: string;
+  tag?: string;
+  summary: string;
+  meta: string;
+  tone: 'primary' | 'secondary' | 'tertiary' | 'neutral';
+  /** Opens the project's link, when it has one. */
+  onOpen?: () => void;
+}
 
 export interface ProfileViewProps {
   avatar: ImageSourcePropType | null;
@@ -20,21 +53,35 @@ export interface ProfileViewProps {
   name: string;
   /** Verified crest on the avatar. */
   verified?: boolean;
+  /** Green presence dot. Sample creators only until presence exists. */
+  online?: boolean;
   handleLine: string;
   headline: string;
   location?: string;
   status?: string;
-  stats: Talent['stats'] | null;
-  action: { label: string; icon: IconName; onPress: () => void };
+  stats: ProfileStat[] | null;
+  /** The main button. With `active`/`activeIcon` it's an on/off button (Follow) and animates. */
+  action: {
+    label: string;
+    icon: IconName;
+    activeIcon?: IconName;
+    active?: boolean;
+    onPress: () => void;
+  };
   onBookmark?: () => void;
   onShare?: () => void;
   bookmarked?: boolean;
   skills: Skill[];
   skillsEmpty?: string;
-  works: Work[];
+  /** Portfolio links (Instagram, Behance, a website...). */
+  links?: { key: string; label: string; onOpen: () => void }[];
+  works: ProfileWorkTile[];
   workTile: { title: string; subtitle: string; icon: IconName; onPress: () => void };
-  projects: Talent['projects'];
+  projects: ProfileProjectCard[];
+  projectsEmpty?: string;
   reviews: Talent['reviews'];
+  /** Content between the header and the portfolio (e.g. the profile checklist). */
+  header?: ReactNode;
   /** Extra content under the portfolio tabs (e.g. account settings on "my profile"). */
   footer?: ReactNode;
 }
@@ -63,7 +110,7 @@ export function ProfileView(p: ProfileViewProps) {
               </View>
             )}
           </Gradient>
-          <View style={[styles.onlineDot, glow('secondary')]} />
+          {p.online && <View style={[styles.onlineDot, glow('secondary')]} />}
           {p.verified !== false && (
             <View style={[styles.crest, shadow('md')]}>
               <Icon name="verified" size={18} color={c.secondary} />
@@ -98,60 +145,70 @@ export function ProfileView(p: ProfileViewProps) {
       {/* Stats */}
       {p.stats && (
         <Glass tint={alpha(c.surfaceContainer, 0.7)} style={[styles.stats, shadow('md')]}>
-          <Stat value={p.stats.followers} label="Followers" />
-          <Stat value={p.stats.following} label="Following" />
-          <Stat value={p.stats.views} label="Views" color={c.secondary} />
-          <View style={styles.stat}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-              <Text style={[type.headlineSm, styles.statValue]}>{p.stats.rating}</Text>
-              <Icon name="star" size={14} color={c.primary} />
-            </View>
-            <Text style={[type.labelSm, styles.statLabel]}>{p.stats.reviews} Reviews</Text>
-          </View>
+          {p.stats.map((s) => (
+            <Stat key={s.label} {...s} />
+          ))}
         </Glass>
       )}
 
       {/* Actions */}
       <View style={styles.actionRow}>
-        <Pressable
+        <PressScale
           onPress={p.action.onPress}
           accessibilityRole="button"
-          style={({ pressed }) => [{ flex: 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+          accessibilityState={
+            p.action.active === undefined ? undefined : { selected: p.action.active }
+          }
+          style={{ flex: 1 }}
+          containerStyle={{ flex: 1 }}
         >
           <Gradient colors={gradients.cta} style={[styles.primary, glow('primary')]}>
-            <Icon name={p.action.icon} size={20} color={c.onPrimary} />
-            <Text
-              style={[type.labelLg, { color: c.onPrimary, fontFamily: 'PlusJakartaSans_700Bold' }]}
-            >
+            {p.action.activeIcon ? (
+              <ToggleIcon
+                on={Boolean(p.action.active)}
+                onIcon={p.action.activeIcon}
+                offIcon={p.action.icon}
+                size={20}
+                color={c.white}
+              />
+            ) : (
+              <Icon name={p.action.icon} size={20} color={c.white} />
+            )}
+            <Text style={[type.labelLg, { color: c.white, fontFamily: 'PlusJakartaSans_700Bold' }]}>
               {p.action.label}
             </Text>
           </Gradient>
-        </Pressable>
+        </PressScale>
         {p.onBookmark && (
-          <Pressable
+          <PressScale
             onPress={p.onBookmark}
             accessibilityRole="button"
             accessibilityLabel="Bookmark"
+            accessibilityState={{ selected: Boolean(p.bookmarked) }}
             style={[styles.round, shadow('md')]}
           >
-            <Icon
-              name={p.bookmarked ? 'bookmark' : 'bookmark-border'}
+            <ToggleIcon
+              on={Boolean(p.bookmarked)}
+              onIcon="bookmark"
+              offIcon="bookmark-border"
               size={20}
-              color={p.bookmarked ? c.primary : c.onSurface}
+              activeColor={c.primary}
             />
-          </Pressable>
+          </PressScale>
         )}
-        <Pressable
+        <PressScale
           accessibilityRole="button"
           accessibilityLabel="Share profile"
           onPress={p.onShare}
           style={[styles.round, shadow('md')]}
         >
           <Icon name="share" size={20} color={c.onSurface} />
-        </Pressable>
+        </PressScale>
       </View>
 
-      {/* Verified skills */}
+      {p.header}
+
+      {/* Skills */}
       <View style={{ gap: 8 }}>
         <View style={styles.sectionHead}>
           <Text style={[type.labelMd, styles.sectionTitle]}>Skills</Text>
@@ -177,6 +234,26 @@ export function ProfileView(p: ProfileViewProps) {
           <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>{p.skillsEmpty}</Text>
         )}
       </View>
+
+      {/* Links */}
+      {p.links && p.links.length > 0 && (
+        <View style={{ gap: 8 }}>
+          <Text style={[type.labelMd, styles.sectionTitle]}>Find me online</Text>
+          <View style={styles.skills}>
+            {p.links.map((l) => (
+              <Pressable
+                key={l.key}
+                onPress={l.onOpen}
+                accessibilityRole="link"
+                style={[styles.skill, { backgroundColor: c.surfaceContainerHigh }]}
+              >
+                <Icon name="link" size={12} color={c.secondary} />
+                <Text style={[type.labelSm, { color: c.onSurface }]}>{l.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* Portfolio tabs */}
       <View style={{ gap: 16, paddingTop: 4 }}>
@@ -204,8 +281,15 @@ export function ProfileView(p: ProfileViewProps) {
         {tab === 'work' && (
           <View style={styles.grid}>
             {p.works.map((pitch) => (
-              <View key={pitch.title} style={[styles.pitch, shadow('md')]}>
-                <Cover source={pitch.image} />
+              <Pressable
+                key={pitch.key}
+                onPress={pitch.onPress}
+                disabled={!pitch.onPress}
+                accessibilityRole={pitch.onPress ? 'button' : undefined}
+                accessibilityLabel={pitch.onPress ? `Watch ${pitch.title}` : undefined}
+                style={[styles.pitch, shadow('md')]}
+              >
+                {pitch.image && <Cover source={pitch.image} />}
                 <Scrim
                   position="bottom"
                   from={c.surfaceContainerLowest}
@@ -213,16 +297,26 @@ export function ProfileView(p: ProfileViewProps) {
                   stops={[alpha(c.surfaceContainerLowest, 0.9), 'transparent', 'transparent']}
                 />
                 <View style={styles.pitchInner}>
-                  <View style={styles.duration}>
-                    <Text style={[type.labelSm, { color: c.secondary }]}>{pitch.duration}</Text>
-                  </View>
-                  <View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                      <Icon name="play-arrow" size={12} color={c.primary} />
-                      <Text style={[type.labelSm, { color: c.onSurface, fontSize: 11 }]}>
-                        {pitch.views}
-                      </Text>
+                  {pitch.locked ? (
+                    <View style={styles.duration}>
+                      <Icon name="lock" size={12} color={c.secondary} />
                     </View>
+                  ) : pitch.duration ? (
+                    <View style={styles.duration}>
+                      <Text style={[type.labelSm, { color: c.secondary }]}>{pitch.duration}</Text>
+                    </View>
+                  ) : (
+                    <View />
+                  )}
+                  <View>
+                    {pitch.views ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                        <Icon name="play-arrow" size={12} color={c.primary} />
+                        <Text style={[type.labelSm, { color: c.onSurface, fontSize: 11 }]}>
+                          {pitch.views}
+                        </Text>
+                      </View>
+                    ) : null}
                     <Text
                       style={[type.bodySm, { color: c.onSurfaceVariant, fontSize: 11 }]}
                       numberOfLines={1}
@@ -231,7 +325,7 @@ export function ProfileView(p: ProfileViewProps) {
                     </Text>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
             <Pressable
               onPress={p.workTile.onPress}
@@ -260,7 +354,7 @@ export function ProfileView(p: ProfileViewProps) {
           (p.projects.length ? (
             p.projects.map((cs) => (
               <Glass
-                key={cs.title}
+                key={cs.key}
                 tint={alpha(c.surfaceContainer, 0.7)}
                 style={[styles.panel, shadow('md')]}
               >
@@ -287,39 +381,50 @@ export function ProfileView(p: ProfileViewProps) {
                       {cs.title}
                     </Text>
                   </View>
-                  <View
-                    style={[
-                      styles.tag,
-                      {
-                        backgroundColor: alpha(
-                          cs.tone === 'primary' ? c.primary : c.secondary,
-                          0.15,
-                        ),
-                      },
-                    ]}
-                  >
-                    <Text
+                  {cs.tag ? (
+                    <View
                       style={[
-                        type.labelSm,
-                        { color: cs.tone === 'primary' ? c.primary : c.secondary },
+                        styles.tag,
+                        {
+                          backgroundColor: alpha(
+                            cs.tone === 'primary' ? c.primary : c.secondary,
+                            0.15,
+                          ),
+                        },
                       ]}
                     >
-                      {cs.tag}
-                    </Text>
-                  </View>
+                      <Text
+                        style={[
+                          type.labelSm,
+                          { color: cs.tone === 'primary' ? c.primary : c.secondary },
+                        ]}
+                      >
+                        {cs.tag}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
-                <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>{cs.summary}</Text>
+                {cs.summary ? (
+                  <Text style={[type.bodySm, { color: c.onSurfaceVariant }]}>{cs.summary}</Text>
+                ) : null}
                 <View style={styles.panelHead}>
                   <Text style={[type.labelSm, { color: c.primary, flexShrink: 1 }]}>{cs.meta}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text style={[type.labelSm, { color: c.secondary }]}>See project</Text>
-                    <Icon name="arrow-forward" size={14} color={c.secondary} />
-                  </View>
+                  {cs.onOpen && (
+                    <Pressable
+                      onPress={cs.onOpen}
+                      accessibilityRole="link"
+                      hitSlop={8}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    >
+                      <Text style={[type.labelSm, { color: c.secondary }]}>See project</Text>
+                      <Icon name="arrow-forward" size={14} color={c.secondary} />
+                    </Pressable>
+                  )}
                 </View>
               </Glass>
             ))
           ) : (
-            <Empty icon="folder-special" text="No projects yet." />
+            <Empty icon="folder-special" text={p.projectsEmpty ?? 'No projects yet.'} />
           ))}
 
         {tab === 'reviews' && (
@@ -371,18 +476,13 @@ export function ProfileView(p: ProfileViewProps) {
   );
 }
 
-function Stat({
-  value,
-  label,
-  color = c.onSurface,
-}: {
-  value: string;
-  label: string;
-  color?: string;
-}) {
+function Stat({ value, label, icon, color = c.onSurface }: ProfileStat) {
   return (
     <View style={styles.stat}>
-      <Text style={[type.headlineSm, styles.statValue, { color }]}>{value}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+        <Text style={[type.headlineSm, styles.statValue, { color }]}>{value}</Text>
+        {icon && <Icon name={icon} size={14} color={c.primary} />}
+      </View>
       <Text style={[type.labelSm, styles.statLabel]}>{label}</Text>
     </View>
   );

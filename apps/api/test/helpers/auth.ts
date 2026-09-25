@@ -1,7 +1,7 @@
 // Test doubles for the auth module. These never leave the test suite.
 import { exportJWK, generateKeyPair, SignJWT, createLocalJWKSet, type JWK } from 'jose';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, type AppDeps } from '../../src/app.js';
 import type { Db } from '../../src/db/client.js';
 import {
   DEFAULT_RATE_LIMITS,
@@ -135,8 +135,11 @@ export async function createTestAuth(
   };
 }
 
-export function createTestApp(db: Db, auth: TestAuth) {
-  const app = createApp({ CORS_ORIGINS: [TEST_ORIGIN] }, { db, auth: auth.deps });
+export function createTestApp(db: Db, auth: TestAuth, videos?: AppDeps['videos']) {
+  const app = createApp(
+    { CORS_ORIGINS: [TEST_ORIGIN] },
+    { db, auth: auth.deps, ...(videos ? { videos } : {}) },
+  );
   return {
     app,
     /** Mobile-style client: refresh token in the body. */

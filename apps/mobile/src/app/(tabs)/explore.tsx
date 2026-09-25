@@ -57,6 +57,7 @@ export default function ExploreScreen() {
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Search skills, creators, ideas..."
+                maxLength={80}
                 placeholderTextColor={c.outline}
                 style={[type.bodyMd, styles.input]}
                 accessibilityLabel="Search skills, creators and ideas"

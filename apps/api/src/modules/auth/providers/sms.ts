@@ -1,4 +1,8 @@
+import { appendFile } from 'node:fs/promises';
 import type { Env } from '../../../config/env.js';
+
+/** Development only: every "sent" code is also written here (git-ignored) so it's easy to find. */
+export const DEV_SMS_LOG = '.dev-sms.log';
 
 /**
  * Sends SMS messages. Implement this for a real provider (e.g. Termii or Twilio, per the
@@ -28,6 +32,10 @@ export class DevConsoleSmsProvider implements SmsProvider {
   async send(to: string, message: string) {
     // Local terminal only; this adapter can never be constructed in production.
     console.info(`\n[DEV SMS — NOT SENT] to ${to}: ${message}\n`);
+    if (this.nodeEnv === 'test') return;
+    await appendFile(DEV_SMS_LOG, `${new Date().toISOString()}  ${to}  ${message}\n`).catch(
+      () => {},
+    );
   }
 }
 

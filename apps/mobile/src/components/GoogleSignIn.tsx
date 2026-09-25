@@ -126,6 +126,9 @@ function DevGoogleMock({ variant }: { variant: 'button' | 'tile' }) {
         label="Test email"
         value={email}
         onChangeText={setEmail}
+        rule="noSpaces"
+        maxLength={254}
+        counter={false}
         autoCapitalize="none"
         keyboardType="email-address"
       />

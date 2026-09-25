@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Cover, Glass, Icon, Scrim } from '../../components/primitives';
+import { tapHaptic, ToggleIcon } from '../../components/animations/ToggleMotion';
 import { alpha, c, radii, shadow, type } from '../../theme';
 import type { Skill, Talent } from '../demo/data';
 
@@ -39,16 +40,21 @@ export function TalentCard({ talent }: { talent: Talent }) {
           <Text style={[type.labelSm, styles.mediaLabelText]}>{talent.mediaLabel}</Text>
         </Glass>
         <Pressable
-          onPress={() => setSaved((v) => !v)}
+          onPress={() => {
+            if (!saved) tapHaptic();
+            setSaved(!saved);
+          }}
           accessibilityRole="button"
           accessibilityLabel={saved ? 'Remove bookmark' : 'Bookmark profile'}
           style={styles.bookmarkHit}
         >
           <Glass tint={alpha(c.surfaceContainerLowest, 0.8)} style={styles.bookmark}>
-            <Icon
-              name={saved ? 'bookmark' : 'bookmark-border'}
+            <ToggleIcon
+              on={saved}
+              onIcon="bookmark"
+              offIcon="bookmark-border"
               size={16}
-              color={saved ? c.secondary : c.onSurface}
+              activeColor={c.secondary}
             />
           </Glass>
         </Pressable>

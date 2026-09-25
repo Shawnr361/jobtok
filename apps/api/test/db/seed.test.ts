@@ -1,4 +1,4 @@
-import { COUNTRIES, LAUNCH_CATEGORIES } from '@jobtok/types';
+import { COUNTRIES, SKILL_CATEGORIES } from '@jobtok/types';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seed } from '../../src/db/seed.js';
 import { SEED_IDS, SKILLS_BY_CATEGORY, seedId } from '../../src/db/seed-data.js';
@@ -52,7 +52,7 @@ describe('seed: reference data only', () => {
     const totalSkills = Object.values(SKILLS_BY_CATEGORY).flat().length;
     expect(summary).toEqual({
       countries: Object.keys(COUNTRIES).length,
-      categories: LAUNCH_CATEGORIES.length,
+      categories: SKILL_CATEGORIES.length,
       skills: totalSkills,
       users: 0,
     });
@@ -80,7 +80,7 @@ describe('seed: full development data', () => {
     );
     expect(first).toMatchObject({
       countries: 3,
-      categories: 7,
+      categories: SKILL_CATEGORIES.length,
       users: 4,
       applications: 1,
       application_status_history: 2,
@@ -98,13 +98,13 @@ describe('seed: full development data', () => {
     });
   });
 
-  it('seeds all launch categories in spec order, each with skills', async () => {
+  it('seeds every skill category in order, each with curated skills', async () => {
     const cats = await db.category.findMany({
       orderBy: { sortOrder: 'asc' },
       include: { _count: { select: { skills: true } } },
     });
-    expect(cats.map((c) => c.name)).toEqual(LAUNCH_CATEGORIES.map((c) => c.name));
-    for (const c of cats) expect(c._count.skills, c.slug).toBeGreaterThanOrEqual(6);
+    expect(cats.map((c) => c.name)).toEqual(SKILL_CATEGORIES.map((c) => c.name));
+    for (const c of cats) expect(c._count.skills, c.slug).toBeGreaterThanOrEqual(3);
     expect(await db.skill.count({ where: { categoryId: null } })).toBe(0);
   });
 

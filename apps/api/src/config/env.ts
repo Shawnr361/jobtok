@@ -42,6 +42,27 @@ const EnvSchema = z.object({
   GOOGLE_CLIENT_IDS: csv(''),
   /** Accept fake "dev-google:" tokens. Development only; refused in production. */
   AUTH_DEV_GOOGLE: bool(false),
+
+  // ─── Videos ──────────────────────────────────────────────────────────────
+  /**
+   * Where uploaded videos are stored. `local` = DEVELOPMENT ONLY (files on this machine's disk,
+   * served by the API); refused in production. Unset in production = uploads disabled until a
+   * real object-storage adapter is added.
+   */
+  VIDEO_STORAGE: z.enum(['local']).optional(),
+  VIDEO_STORAGE_DIR: z.string().default('.media'),
+  /** Largest accepted upload. Spec: 60-second videos, 720p. */
+  VIDEO_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1_000_000)
+    .max(1_000_000_000)
+    .default(100 * 1024 * 1024),
+  /** HMAC key for signed, expiring media URLs. At least 32 characters. */
+  MEDIA_SIGNING_SECRET: z.string().min(32).optional(),
+  /** FFmpeg tools used to inspect uploads and make thumbnails. */
+  FFPROBE_PATH: z.string().default('ffprobe'),
+  FFMPEG_PATH: z.string().default('ffmpeg'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -67,6 +88,9 @@ export function assertProductionSafe(env: Env) {
   if (env.EMAIL_PROVIDER === 'dev')
     problems.push('EMAIL_PROVIDER=dev cannot be used in production');
   if (env.AUTH_DEV_GOOGLE) problems.push('AUTH_DEV_GOOGLE cannot be enabled in production');
+  if (env.VIDEO_STORAGE === 'local') {
+    problems.push('VIDEO_STORAGE=local is development-only; configure real object storage');
+  }
   if (problems.length) {
     throw new Error(`Unsafe production configuration:\n- ${problems.join('\n- ')}`);
   }

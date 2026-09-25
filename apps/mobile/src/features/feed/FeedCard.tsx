@@ -1,16 +1,23 @@
 // One full-height "video" in the feed (design: jobtok_video_feed). Video playback arrives with
 // the upload pipeline; until then the poster image stands in for the video.
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Animated, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import Reanimated from 'react-native-reanimated';
 import { Cover, Glass, Gradient, Icon, Scrim, Spin } from '../../components/primitives';
-import { SpinningGem } from '../../components/animations/SpinningGem';
-import { useOnce } from '../../components/animations/useLoop';
-import { alpha, c, glow, gradients, radii, shadow, type } from '../../theme';
+import { HeartBurst } from '../../components/animations/HeartBurst';
+import {
+  FollowBadge,
+  ICON_SHADOW,
+  tapHaptic,
+  ToggleIcon,
+} from '../../components/animations/ToggleMotion';
+import { brand, alpha, c, glow, gradients, radii, shadow, type, CSS_EASE_OUT } from '../../theme';
 import { images, type Learn, type Talent } from '../demo/data';
 
 function RailButton({
   icon,
+  activeIcon,
   count,
   label,
   active,
@@ -18,6 +25,8 @@ function RailButton({
   onPress,
 }: {
   icon: React.ComponentProps<typeof Icon>['name'];
+  /** Set for on/off buttons (like, save): the icon when on. Swaps with motion. */
+  activeIcon?: React.ComponentProps<typeof Icon>['name'];
   count: string;
   label: string;
   active?: boolean;
@@ -32,9 +41,21 @@ function RailButton({
       accessibilityState={{ selected: Boolean(active) }}
       style={({ pressed }) => [styles.railItem, { transform: [{ scale: pressed ? 1.12 : 1 }] }]}
     >
-      <Glass tint="rgba(35, 42, 58, 0.70)" style={[styles.railOrb, shadow('md')]}>
-        <Icon name={icon} size={24} color={active ? (activeColor ?? c.onSurface) : c.onSurface} />
-      </Glass>
+      <View style={styles.railOrb}>
+        {activeIcon ? (
+          <ToggleIcon
+            on={Boolean(active)}
+            onIcon={activeIcon}
+            offIcon={icon}
+            size={30}
+            color={c.white}
+            activeColor={activeColor}
+            shadow
+          />
+        ) : (
+          <Icon name={icon} size={30} color={c.white} style={ICON_SHADOW} />
+        )}
+      </View>
       <Text style={[type.labelSm, styles.railCount]}>{count}</Text>
     </Pressable>
   );
@@ -61,6 +82,23 @@ export function FeedCard({
 }) {
   const router = useRouter();
   const [liked, setLiked] = useState(false);
+  // Two quick taps anywhere on the card like it (never unlike) with a heart where you tapped.
+  const cardRef = useRef<View>(null);
+  const lastTap = useRef(0);
+  const [bursts, setBursts] = useState<{ id: number; x: number; y: number }[]>([]);
+  const onCardTap = (pageX: number, pageY: number) => {
+    const now = Date.now();
+    if (now - lastTap.current > 280) {
+      lastTap.current = now;
+      return;
+    }
+    lastTap.current = 0;
+    if (!liked) tapHaptic();
+    setLiked(true);
+    cardRef.current?.measure((_x, _y, _w, _h, left, top) =>
+      setBursts((b) => [...b.slice(-3), { id: now, x: pageX - left, y: pageY - top }]),
+    );
+  };
   const [saved, setSaved] = useState(false);
   const [learnOpen, setLearnOpen] = useState(false);
   const f = talent.feed;
@@ -85,7 +123,12 @@ export function FeedCard({
 
   return (
     <View style={[styles.page, { height }]}>
-      <View style={[styles.card, shadow('xl')]}>
+      <Pressable
+        ref={cardRef}
+        style={[styles.card, shadow('xl')]}
+        onPress={(e) => onCardTap(e.nativeEvent.pageX, e.nativeEvent.pageY)}
+        accessibilityHint="Double-tap quickly to like"
+      >
         <Cover source={talent.cover} />
         <Scrim
           position="top"
@@ -113,10 +156,14 @@ export function FeedCard({
             {pill ? (
               <Icon name={pill.icon} size={14} color={c.secondary} />
             ) : (
-              <SpinningGem size={16} />
+              <Icon name="category" size={14} color={c.secondary} />
             )}
             <Text style={[type.labelSm, styles.topText]}>{pill?.text ?? talent.category}</Text>
           </Glass>
+          {/* Sample creators are never passed off as real people. */}
+          <View style={styles.sampleTag} accessibilityLabel="Sample content">
+            <Text style={[type.labelSm, styles.sampleText]}>SAMPLE</Text>
+          </View>
         </View>
 
         {/* Bottom details + right rail */}
@@ -195,34 +242,42 @@ export function FeedCard({
                 </Gradient>
               </Pressable>
               <Pressable
-                onPress={onToggleFollow}
+                onPress={() => {
+                  if (!following) tapHaptic();
+                  onToggleFollow();
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={following ? 'Unfollow' : 'Follow'}
-                style={[styles.follow, { backgroundColor: following ? c.secondary : c.primary }]}
+                style={styles.follow}
+                hitSlop={8}
               >
-                <Icon
-                  name={following ? 'check' : 'add'}
-                  size={14}
-                  color={following ? c.onSecondary : c.onPrimary}
-                />
+                <FollowBadge on={following} size={20} />
               </Pressable>
             </View>
             <RailButton
-              icon={liked ? 'favorite' : 'favorite-border'}
+              icon="favorite-border"
+              activeIcon="favorite"
               count={liked ? bump(f.likes) : f.likes}
               label="Like"
               active={liked}
-              activeColor={c.error}
-              onPress={() => setLiked((v) => !v)}
+              activeColor={brand.like}
+              onPress={() => {
+                if (!liked) tapHaptic();
+                setLiked(!liked);
+              }}
             />
             <RailButton icon="chat-bubble" count={f.comments} label="Comments" />
             <RailButton
-              icon={saved ? 'bookmark' : 'bookmark-border'}
+              icon="bookmark-border"
+              activeIcon="bookmark"
               count={saved ? bump(f.saves) : f.saves}
               label={saved ? 'Saved for later' : 'Save for later'}
               active={saved}
               activeColor={c.secondary}
-              onPress={() => setSaved((v) => !v)}
+              onPress={() => {
+                if (!saved) tapHaptic();
+                setSaved(!saved);
+              }}
             />
             <RailButton icon="share" count={f.shares} label="Share" onPress={() => void share()} />
             <Spin>
@@ -247,13 +302,32 @@ export function FeedCard({
             onClose={() => setLearnOpen(false)}
           />
         )}
-      </View>
+        {bursts.map((b) => (
+          <HeartBurst
+            key={b.id}
+            x={b.x}
+            y={b.y}
+            onDone={() => setBursts((all) => all.filter((x) => x.id !== b.id))}
+          />
+        ))}
+      </Pressable>
     </View>
   );
 }
 
+// The Learn sheet slides up from below (occasional → standard motion). A Reanimated CSS
+// animation, so it never re-positions the sheet on the web.
+const SHEET_IN = {
+  animationName: {
+    from: { opacity: 0, transform: [{ translateY: 40 }] },
+    to: { opacity: 1, transform: [{ translateY: 0 }] },
+  },
+  animationDuration: '300ms',
+  animationTimingFunction: CSS_EASE_OUT,
+} as const;
+
 /** Lightweight "Learn this" sheet that slides up over the video. */
-function LearnPanel({
+export function LearnPanel({
   learn,
   title,
   saved,
@@ -266,9 +340,6 @@ function LearnPanel({
   onSave: () => void;
   onClose: () => void;
 }) {
-  const t = useOnce(280);
-  const translateY = t.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
-
   const sections: {
     icon: React.ComponentProps<typeof Icon>['name'];
     label: string;
@@ -283,7 +354,7 @@ function LearnPanel({
   return (
     <View style={styles.sheetWrap}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityLabel="Close" />
-      <Animated.View style={{ opacity: t, transform: [{ translateY }] }}>
+      <Reanimated.View style={SHEET_IN}>
         <Glass tint={alpha(c.surfaceContainer, 0.94)} style={styles.sheet}>
           <View style={styles.sheetHead}>
             <View style={{ flex: 1, gap: 2 }}>
@@ -348,7 +419,7 @@ function LearnPanel({
             </Text>
           </Pressable>
         </Glass>
-      </Animated.View>
+      </Reanimated.View>
     </View>
   );
 }
@@ -370,7 +441,16 @@ const styles = StyleSheet.create({
     backgroundColor: c.surfaceContainerLowest,
     justifyContent: 'space-between',
   },
-  topRow: { paddingHorizontal: 16, flexDirection: 'row' },
+  topRow: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sampleTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: alpha(c.onSurfaceVariant, 0.5),
+    backgroundColor: alpha(c.surfaceContainerLowest, 0.6),
+  },
+  sampleText: { color: c.onSurfaceVariant, letterSpacing: 1 },
   topPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -446,7 +526,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  railCount: { color: c.onSurface, fontFamily: 'PlusJakartaSans_700Bold' },
+  railCount: { color: c.white, fontFamily: 'PlusJakartaSans_700Bold', ...ICON_SHADOW },
   disc: {
     width: 40,
     height: 40,

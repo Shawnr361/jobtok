@@ -40,3 +40,5 @@ export function shadow(level: 'md' | 'xl' = 'md'): ViewStyle {
     },
   })!;
 }
+
+export * from './motion';

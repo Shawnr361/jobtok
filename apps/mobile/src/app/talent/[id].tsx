@@ -7,6 +7,7 @@ import { DEMO_NOTICE, findTalent } from '../../features/demo/data';
 import { ProfileView } from '../../features/profile/ProfileView';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { c, type } from '../../theme';
+import { tapHaptic } from '../../components/animations/ToggleMotion';
 
 /**
  * Public creator profile (design: jobtok_candidate_profile_portfolio). Sample data for now.
@@ -56,39 +57,52 @@ export default function TalentScreen() {
         <ProfileView
           avatar={talent.avatar}
           name={talent.name}
+          online
           handleLine={`${talent.handle} • ${talent.role}`}
           headline={talent.headline}
           location={talent.location}
           status={talent.status}
-          stats={talent.stats}
+          stats={[
+            { value: talent.stats.followers, label: 'Followers' },
+            { value: talent.stats.following, label: 'Following' },
+            { value: talent.stats.views, label: 'Views', color: c.secondary },
+            { value: talent.stats.rating, label: `${talent.stats.reviews} Reviews`, icon: 'star' },
+          ]}
           action={{
             label: following ? 'Following' : 'Follow',
-            icon: following ? 'check' : 'person-add',
-            onPress: () => setFollowing((v) => !v),
+            icon: 'person-add',
+            activeIcon: 'check',
+            active: following,
+            onPress: () => {
+              if (!following) tapHaptic();
+              setFollowing(!following);
+            },
           }}
           bookmarked={bookmarked}
-          onBookmark={() => setBookmarked((v) => !v)}
+          onBookmark={() => {
+            if (!bookmarked) tapHaptic();
+            setBookmarked(!bookmarked);
+          }}
           onShare={() => void share()}
           skills={talent.topSkills}
-          works={
-            talent.works.length
-              ? talent.works
-              : [
-                  {
-                    title: talent.feed.title,
-                    duration: '0:58',
-                    views: talent.feed.likes,
-                    image: talent.cover,
-                  },
-                ]
-          }
+          works={(talent.works.length
+            ? talent.works
+            : [
+                {
+                  title: talent.feed.title,
+                  duration: '0:58',
+                  views: talent.feed.likes,
+                  image: talent.cover,
+                },
+              ]
+          ).map((w) => ({ ...w, key: w.title }))}
           workTile={{
             title: 'Work together',
             subtitle: 'Message, team up or hire',
             icon: 'handshake',
             onPress: workTogether,
           }}
-          projects={talent.projects}
+          projects={talent.projects.map((p) => ({ ...p, key: p.title }))}
           reviews={talent.reviews}
           footer={<Text style={[type.labelSm, styles.notice]}>{DEMO_NOTICE}</Text>}
         />

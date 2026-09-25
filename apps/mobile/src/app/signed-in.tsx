@@ -8,9 +8,12 @@
 // moving on.
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import Reanimated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useOnce } from '../components/animations/useLoop';
+import { FadeUp } from '../components/animations/Enter';
+import { MorphCard } from '../components/auth/MorphCard';
+import { SILK_BASE, SilkBackdrop } from '../components/auth/SilkBackdrop';
 import { VerifiedBadge } from '../components/animations/VerifiedBadge';
 import { Gradient, Icon, type IconName } from '../components/primitives';
 import { Button } from '../components/ui';
@@ -19,14 +22,6 @@ import { alpha, brand, c, gradients, radii, type } from '../theme';
 
 const AUTO_CONTINUE_MS = 2600;
 const STATUS_START = 1500;
-
-function FadeUp({ delay, children }: { delay: number; children: React.ReactNode }) {
-  const t = useOnce(500, { delay });
-  const translateY = t.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
-  return (
-    <Animated.View style={{ opacity: t, transform: [{ translateY }] }}>{children}</Animated.View>
-  );
-}
 
 function Status({
   icon,
@@ -72,11 +67,6 @@ export default function SignedInScreen() {
 
   const phoneDone = Boolean(user?.verification.phone);
   const autoContinue = phoneDone;
-  const progress = useOnce(AUTO_CONTINUE_MS, {
-    delay: STATUS_START + 500,
-    easing: Easing.linear,
-    native: false,
-  });
 
   useEffect(() => {
     if (!autoContinue) return;
@@ -116,24 +106,29 @@ export default function SignedInScreen() {
     statuses.push({ icon: 'link', label: 'Google connected', done: true });
   }
 
-  const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
-
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: SILK_BASE }]}>
+      <SilkBackdrop />
       <View style={styles.body}>
         <VerifiedBadge size={200} ringsDelay={1100} />
 
-        <FadeUp delay={1100}>
-          <Text style={[type.displayHeroMobile, styles.title]} accessibilityRole="header">
-            {copy.title}
-          </Text>
-          <Text style={[type.bodyLg, styles.subtitle]}>{copy.body}</Text>
-        </FadeUp>
-
-        <View style={styles.statuses}>
-          {statuses.map((s, i) => (
-            <Status key={s.label} {...s} delay={STATUS_START + i * 220} />
-          ))}
+        {/* The same glass card as sign-in, so the moment reads as one journey. */}
+        <View style={{ alignSelf: 'stretch' }}>
+          <FadeUp delay={1000}>
+            <MorphCard>
+              <View style={{ gap: 6 }}>
+                <Text style={[type.displayHeroMobile, styles.title]} accessibilityRole="header">
+                  {copy.title}
+                </Text>
+                <Text style={[type.bodyLg, styles.subtitle]}>{copy.body}</Text>
+              </View>
+              <View style={styles.statuses}>
+                {statuses.map((s, i) => (
+                  <Status key={s.label} {...s} delay={STATUS_START + i * 220} />
+                ))}
+              </View>
+            </MorphCard>
+          </FadeUp>
         </View>
       </View>
 
@@ -147,14 +142,33 @@ export default function SignedInScreen() {
                   next === 'create' ? 'Opening the studio' : 'Taking you to your feed'
                 }
               >
-                <Animated.View style={{ width: barWidth, height: '100%' }}>
+                {/* Fills in real time until the auto-continue: constant motion, so linear. */}
+                <Reanimated.View
+                  style={{
+                    height: '100%',
+                    width: '0%',
+                    animationName: { from: { width: '0%' }, to: { width: '100%' } },
+                    animationDuration: `${AUTO_CONTINUE_MS}ms`,
+                    animationDelay: `${STATUS_START + 500}ms`,
+                    animationTimingFunction: 'linear',
+                    animationFillMode: 'forwards',
+                  }}
+                >
                   <Gradient colors={gradients.apply} style={{ flex: 1 }} />
-                </Animated.View>
+                </Reanimated.View>
               </View>
               <Button
                 label={next === 'create' ? 'Show your skills' : 'Start exploring'}
                 onPress={() => router.replace(destination)}
               />
+              {fresh === '1' && (
+                // Optional: new people can say what they do first. Nothing here is required.
+                <Button
+                  label="Tell us what you do first"
+                  variant="ghost"
+                  onPress={() => router.replace('/profile-edit')}
+                />
+              )}
             </>
           ) : (
             <>

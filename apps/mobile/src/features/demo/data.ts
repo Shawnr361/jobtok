@@ -177,7 +177,7 @@ export const talents: Talent[] = [
     feed: {
       icon: 'handyman',
       title: 'Watch me turn raw iroko into a dining table',
-      caption: 'Day 3 of 5: planing, joinery and the first dry fit. Final result on Friday 🔨',
+      caption: 'Day 3 of 5: planing, joinery and the first dry fit. Final result on Friday.',
       sound: 'Original sound • Workshop sounds',
       likes: '12.4K',
       comments: '842',
